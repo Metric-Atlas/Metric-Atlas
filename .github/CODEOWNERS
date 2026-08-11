@@ -1,0 +1,24 @@
+# Replace placeholders with actual GitHub usernames.
+
+/packages/contracts/ @member-a
+/docs/00-project-source-of-truth.md @member-a
+/docs/08-contracts-and-schema.md @member-a
+/docs/15-decision-log.md @member-a
+
+/packages/detector-core/ @member-b
+/packages/detector-ga4/ @member-b
+/packages/detector-gtm/ @member-b
+/packages/detector-meta/ @member-b
+/packages/detector-mixpanel/ @member-b
+/packages/transform-babel/ @member-b
+/packages/overlay/ @member-b
+
+/packages/dashboard/ @member-c
+/packages/connector-sdk/ @member-c
+/packages/connector-ga4/ @member-c
+/packages/analytics-health/ @member-c
+
+/packages/query-engine/ @member-d
+/packages/llm-openai-compatible/ @member-d
+/apps/demo-react-vite/ @member-d
+/CONTRIBUTING.md @member-d

@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-08-11T00:05:00Z",
+  "provider": "ga4",
+  "propertyId": "123456789",
+  "reportingTimezone": "Asia/Seoul",
+  "summary": {
+    "healthy": 1,
+    "codeOnly": 1,
+    "ga4Only": 1,
+    "ga4Managed": 1,
+    "parameterRegistrationGap": 1,
+    "unresolved": 0
+  },
+  "items": [
+    {
+      "eventKey": "ga4:purchase_click",
+      "eventName": "purchase_click",
+      "codeState": "detected",
+      "ga4ObservationState": "observed",
+      "ga4ManagedState": "not_managed",
+      "parameterRegistrationStates": [
+        {
+          "parameter": "currency",
+          "state": "builtin"
+        },
+        {
+          "parameter": "campaign_slot",
+          "state": "not_registered"
+        }
+      ],
+      "latestMeasurement": {
+        "resultStatus": "ok",
+        "value": 1240,
+        "qualityFlags": []
+      },
+      "reviewReason": "parameter_registration_gap"
+    },
+    {
+      "eventKey": "ga4:signup_complete",
+      "eventName": "signup_complete",
+      "codeState": "detected",
+      "ga4ObservationState": "not_observed",
+      "ga4ManagedState": "not_managed",
+      "parameterRegistrationStates": [],
+      "latestMeasurement": {
+        "resultStatus": "no_rows",
+        "qualityFlags": [
+          "recent_data_may_change"
+        ]
+      },
+      "reviewReason": "code_only_recent_data"
+    },
+    {
+      "eventKey": "ga4:page_view",
+      "eventName": "page_view",
+      "codeState": "not_detected",
+      "ga4ObservationState": "observed",
+      "ga4ManagedState": "managed",
+      "parameterRegistrationStates": [],
+      "latestMeasurement": {
+        "resultStatus": "ok",
+        "value": 9000,
+        "qualityFlags": []
+      },
+      "reviewReason": null
+    }
+  ]
+}

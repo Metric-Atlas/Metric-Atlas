@@ -1,0 +1,32 @@
+{
+  "queryPlan": {
+    "version": "1",
+    "analysisType": "comparison",
+    "eventKeys": [
+      "ga4:purchase_click"
+    ],
+    "dateRange": {
+      "preset": "last_30_days"
+    },
+    "comparisonRange": {
+      "preset": "previous_30_days"
+    },
+    "filters": [],
+    "breakdowns": [],
+    "sourceRefs": [
+      "ga4"
+    ],
+    "assumptions": []
+  },
+  "result": {
+    "provider": "ga4",
+    "eventKey": "ga4:purchase_click",
+    "metricType": "comparison",
+    "resultStatus": "ok",
+    "value": 1240,
+    "previousValue": 1100,
+    "reportingTimezone": "Asia/Seoul",
+    "qualityFlags": [],
+    "fetchedAt": "2026-08-11T00:05:00Z"
+  }
+}

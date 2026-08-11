@@ -1,0 +1,111 @@
+{
+  "version": "0.1",
+  "buildId": "demo-build-001",
+  "generatedAt": "2026-08-11T00:00:00Z",
+  "events": [
+    {
+      "eventKey": "ga4:purchase_click",
+      "eventName": "purchase_click",
+      "emitter": "ga4",
+      "analyticsProvider": "ga4",
+      "providerDetectionConfidence": "provider_exact",
+      "parameters": [
+        "value",
+        "currency"
+      ],
+      "source": {
+        "file": "src/PurchaseButton.tsx",
+        "line": 8,
+        "column": 5
+      },
+      "overlaySupported": true
+    },
+    {
+      "eventKey": "gtm:lead_submit",
+      "eventName": "lead_submit",
+      "emitter": "gtm",
+      "analyticsProvider": "unknown",
+      "providerDetectionConfidence": "provider_exact",
+      "parameters": [
+        "form_type"
+      ],
+      "source": {
+        "file": "src/LeadForm.tsx",
+        "line": 16,
+        "column": 5
+      },
+      "overlaySupported": true
+    },
+    {
+      "eventKey": "ga4:custom_card_click",
+      "eventName": "custom_card_click",
+      "emitter": "ga4",
+      "analyticsProvider": "ga4",
+      "providerDetectionConfidence": "provider_exact",
+      "parameters": [],
+      "source": {
+        "file": "src/CustomCard.tsx",
+        "line": 12,
+        "column": 5
+      },
+      "overlaySupported": false
+    }
+  ],
+  "bindings": [
+    {
+      "atlasDomId": "atlas_demo_001",
+      "eventKeys": [
+        "ga4:purchase_click"
+      ],
+      "element": {
+        "type": "button",
+        "file": "src/PurchaseButton.tsx",
+        "line": 12,
+        "column": 3
+      },
+      "bindingConfidence": "binding_exact"
+    },
+    {
+      "atlasDomId": "atlas_demo_002",
+      "eventKeys": [
+        "gtm:lead_submit"
+      ],
+      "element": {
+        "type": "form",
+        "file": "src/LeadForm.tsx",
+        "line": 22,
+        "column": 3
+      },
+      "bindingConfidence": "binding_exact"
+    }
+  ],
+  "summaries": {
+    "emitters": [
+      {
+        "name": "ga4",
+        "eventCount": 2
+      },
+      {
+        "name": "gtm",
+        "eventCount": 1
+      }
+    ],
+    "analyticsProviders": [
+      {
+        "name": "ga4",
+        "eventCount": 2
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "CUSTOM_COMPONENT_OVERLAY_UNSUPPORTED",
+      "file": "src/CustomCard.tsx"
+    }
+  ],
+  "scanStats": {
+    "filesScanned": 12,
+    "durationMs": 180,
+    "eventsDetected": 3
+  }
+}
