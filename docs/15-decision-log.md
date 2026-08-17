@@ -122,6 +122,46 @@ Status:
 
 ## DEC-026 — Pre-Phase 0 Research & Contract Inputs
 - Date: 2026-08-12
-- Status: Proposed
+- Status: Accepted
 - Decision: B/C/D가 Domain Contract Input을 조사·제안하고 A가 충돌을 조정한 뒤 Contract v0와 Fixture set을 승인한다.
-- Note: A 승인 전까지 `docs/20-phase-0-common-fields.md`와 관련 필드 변경은 제안 상태이다.
+- Note: 2026-08-18, ADR-001로 C(재욱)의 Contract Input(PR #1)을 근거로 Contract v0을 Freeze. B/D 입력은 미제출 상태이며 도착 시 충돌 항목은 후속 ADR로 조정.
+
+## DEC-027 — implementationKey / implementationKeys are Contract v0 required fields
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: `DetectedEvent.implementationKey`, `ElementBinding.implementationKeys`를 필수 필드로 확정. ADR-001.
+
+## DEC-028 — HealthSummary buckets are mutually exclusive with fixed priority
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: 각 Health Item은 `unresolved > parameterRegistrationGap > codeOnly > ga4Managed > ga4Only > healthy` 우선순위로 정확히 하나의 버킷에 속한다. ADR-001.
+
+## DEC-029 — HealthSummary.unresolved definition
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: `unresolved` = (codeState 또는 ga4ObservationState가 unknown인 Health Item 수) + (Manifest `DYNAMIC_EVENT_NAME` Warning 건수). ADR-001.
+
+## DEC-030 — Manifest parameters fully represented in Health parameter registration states
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: Manifest의 모든 Event Parameter는 대응 HealthItem에 등록 상태 항목을 가지며, 판정 불가 시 `unknown`을 사용한다. ADR-001.
+
+## DEC-031 — QueryResult Producer is C
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: D는 QueryPlan Producer, C는 QueryResult Producer. ADR-001.
+
+## DEC-032 — QueryResult.dateRange is resolved to absolute dates; comparisonDateRange added
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: `QueryResult.dateRange`는 Property Reporting Time Zone 기준 절대 날짜로 반환한다. `metricType="comparison"`이면 `comparisonDateRange`를 필수로 포함한다. ADR-001.
+
+## DEC-033 — GA4 Analytics Health Report scoped to analyticsProvider="ga4"
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: `provider=unknown`인 GTM 이벤트는 GA4 Health 판정 대상에서 제외한다. ADR-001.
+
+## DEC-034 — GA4 Health default windows and quality-flag mapping deferred to spike
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: Health 관측 기간 기본값, thresholding/`(other)` → DataQualityFlag 매핑, `no_rows` 문구 규칙, Cache TTL/concurrency 기본값은 GA4 Spike(C-SPIKE-001) 결과 이후 별도 ADR로 확정한다. Contract v0 구조 Freeze를 막지 않는다.

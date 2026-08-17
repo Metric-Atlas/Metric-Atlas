@@ -1,16 +1,18 @@
 # 20. Phase 0 Common Fields
 
-- Status: Proposed
+- Status: Accepted
 - Approver: Member A (가현)
 - Domain input owners: Member B/C/D
+- Accepted by: ADR-001 (`docs/adr/ADR-001-phase0-contract-v0-freeze.md`), 2026-08-18
+- Contract Input received: C (PR #1, `docs/contract-inputs/c-phase0-common-fields-review.md`). B/D 입력은 아직 미제출 — 도착 시 충돌 항목은 후속 ADR로 조정.
 
 ## 1. 목적
 
-이 문서는 Phase 0에서 성준/재욱/호범이 병렬 개발을 시작하기 위해 공유해야 하는 최소 공통 필드를 제안합니다.
+이 문서는 Phase 0에서 성준/재욱/호범이 병렬 개발을 시작하기 위해 공유해야 하는 최소 공통 필드를 확정합니다.
 
-Phase 0의 목표는 최종 구현 상세를 모두 확정하는 것이 아니라 Mock Fixture와 초기 화면/로직이 같은 기준을 바라보게 만드는 것입니다. 이 문서는 A의 승인 전까지 계약 초안이며, 승인 이후 실제 Machine SoT는 `packages/contracts`의 Zod Schema입니다.
+Phase 0의 목표는 최종 구현 상세를 모두 확정하는 것이 아니라 Mock Fixture와 초기 화면/로직이 같은 기준을 바라보게 만드는 것입니다. 이 문서는 ADR-001로 Accepted 상태이며, 실제 Machine SoT는 `packages/contracts`의 Zod Schema입니다.
 
-이 문서에 정의된 필드는 Phase 0 Consumer가 의존할 수 있는 최소 필드입니다. 여기에 없는 확장 필드는 A 승인 전까지 공통 Consumer가 의존하지 않습니다.
+이 문서에 정의된 필드는 Phase 0 Consumer가 의존할 수 있는 최소 필드입니다. 여기에 없는 확장 필드는 A 승인 없이 공통 Consumer가 의존하지 않습니다.
 
 ## 2. 역할 기준
 
@@ -161,6 +163,21 @@ interface HealthSummary {
 }
 ```
 
+**버킷은 상호배타적입니다 (ADR-001).** 각 `HealthItem`은 정확히 하나의 버킷에만 속하며, 판정 우선순위는 다음과 같습니다.
+
+```text
+unresolved                 codeState=unknown 또는 ga4ObservationState=unknown
+> parameterRegistrationGap parameterRegistrationStates에 state=not_registered 존재
+> codeOnly                 codeState=detected, ga4ObservationState=not_observed
+> ga4Managed                ga4ManagedState=managed
+> ga4Only                  codeState=not_detected, ga4ObservationState=observed, ga4ManagedState=not_managed
+> healthy                  그 외 (codeState=detected, ga4ObservationState=observed, gap 없음)
+```
+
+`HealthSummary.unresolved`는 다음 두 원천의 합입니다.
+- `items[]` 중 위 규칙으로 `unresolved` 버킷에 속한 항목 수
+- Event Manifest `warnings[]`의 `DYNAMIC_EVENT_NAME` 건수 (동적 이벤트는 `events[]`에 없어 `items[]`로 나타나지 않으므로 별도 합산)
+
 ### HealthItem
 
 ```ts
@@ -184,6 +201,8 @@ interface ParameterRegistrationState {
   state: ParameterState;
 }
 ```
+
+**전수 포함 규칙 (ADR-001).** 같은 `eventKey`의 Manifest `DetectedEvent.parameters`에 있는 모든 파라미터는 `HealthItem.parameterRegistrationStates`에 대응 항목을 가져야 합니다. 등록 상태를 판정할 수 없으면 `state="unknown"`을 사용하며, 항목을 생략하지 않습니다.
 
 ### LatestMeasurement
 
@@ -210,11 +229,18 @@ interface QueryResult {
   value?: number;
   previousValue?: number;
   dateRange: DateRange;
+  comparisonDateRange?: DateRange;
   reportingTimezone: string;
   fetchedAt: string;
   qualityFlags: DataQualityFlag[];
 }
 ```
+
+**Producer = C (ADR-001).** D는 `QueryPlan`의 Producer이며 `QueryResult`의 Producer가 아닙니다 (Module Boundary, docs/04 §5).
+
+**`dateRange`는 절대 날짜 (ADR-001).** `QueryPlan.dateRange`가 `preset`이어도 `QueryResult.dateRange`는 Property Reporting Time Zone 기준으로 해석된 `{ startDate, endDate }` 형태로 반환합니다.
+
+**`comparisonDateRange` (ADR-001).** `metricType="comparison"`인 경우 필수이며, 비교 대상 이전 기간의 절대 날짜를 담습니다. `comparison`이 아니면 생략합니다.
 
 ### DateRange
 
@@ -340,11 +366,11 @@ type MetricType = "event_count" | "comparison" | "custom";
 ## 8. Phase 0 Fixture 규칙
 
 - Health Item에서 `codeState="detected"`인 GA4 이벤트는 Manifest에 같은 `eventKey`가 있어야 합니다.
-- Manifest의 모든 이벤트가 특정 Provider의 Health Report에 들어갈 필요는 없습니다. 예를 들어 목적 Provider가 확인되지 않은 GTM 이벤트는 GA4 Health 대상에서 제외할 수 있습니다.
-- Health Item의 Parameter Registration State는 같은 `eventKey`의 Manifest Parameter를 근거로 해야 합니다.
+- **GA4 Health Report 범위는 `analyticsProvider="ga4"` 이벤트로 한정합니다 (ADR-001).** 목적 Provider가 확인되지 않은 GTM 이벤트(`analyticsProvider="unknown"`)는 GA4 Health 판정 대상에서 제외합니다.
+- Health Item의 Parameter Registration State는 같은 `eventKey`의 Manifest Parameter를 근거로 하며, Manifest Parameter 전수를 포함해야 합니다 (§5 전수 포함 규칙).
 - `mock-query-result.json`의 `result`는 `QueryResult`의 필수 필드를 모두 포함해야 합니다.
 - Fixture 변경은 계약 변경과 동일하게 Producer/Consumer 영향을 확인합니다.
-- A가 이 초안을 승인하기 전에는 기존 Fixture를 Contract v0 기준선으로 교체하지 않습니다.
+- Contract v0 Fixture set은 ADR-001로 Freeze되었습니다. 이후 변경은 신규 ADR을 거칩니다.
 
 ## 9. Phase 0에서 아직 확정하지 않는 것
 
@@ -356,21 +382,32 @@ type MetricType = "event_count" | "comparison" | "custom";
 - Enum의 최종 확장 목록
 - Manifest Summary/ScanStats의 최종 필수 여부
 
-## 10. 승인 전 결정 항목
+## 10. Contract v0 결정 (ADR-001, 2026-08-18 Accepted)
 
-A는 B/C/D의 검토 결과를 바탕으로 다음을 결정합니다.
+C(재욱)의 Contract Input(PR #1)을 바탕으로 A가 다음을 결정했습니다. 전체 근거는 `docs/adr/ADR-001-phase0-contract-v0-freeze.md` 참고.
 
-- `implementationKey`와 `implementationKeys`를 Contract v0 필수 필드로 확정할지
-- 동적 이벤트를 Warning으로만 표현하는 규칙을 확정할지
-- `summaries`와 `scanStats`를 optional로 둘지
-- Query Result Producer를 C로 확정할지
-- Fixture 정합성 수정안을 Contract v0 기준선으로 채택할지
+- `implementationKey`/`implementationKeys` → **필수 필드로 확정**
+- 동적 이벤트 Warning-only 표현 → **확정**, `unresolved` 산정 근거를 §4/§5에 명시
+- `summaries`/`scanStats` → **optional 유지**
+- Query Result Producer → **C로 확정**
+- Fixture 정합성 수정안 → **채택** (§8, Fixture 목록은 `fixtures/README.md` 참고)
+- HealthSummary 버킷 상호배타 + 우선순위, Parameter 전수 포함, `dateRange` 절대 날짜, `comparisonDateRange` 추가 → **모두 채택** (각 해당 절 참고)
+
+B/D의 Contract Input은 아직 제출되지 않았습니다. 이번 Freeze는 B/D 도메인과 충돌 가능성이 낮은 항목 위주이며, B/D 입력 도착 시 충돌이 발견되면 후속 ADR로 조정합니다.
+
+### Spike 이후로 보류 (Contract v0 구조에는 영향 없음)
+
+- Health 관측 기간 기본값 (`METRIC_ATLAS_GA4_RECENT_WINDOW_HOURS` 등)
+- thresholding / `(other)` data loss → `DataQualityFlag` 매핑 세부 규칙
+- `no_rows` + `recent_data_may_change`일 때 `reviewReason` 문구 규칙
+- Cache TTL, outbound concurrency 기본값
 
 ## 11. 종료 기준
 
-A가 이 문서를 승인하고 대응하는 Zod Schema와 Fixture set을 Freeze한 뒤 다음이 가능해야 합니다.
+Contract v0가 Freeze되어 다음이 가능합니다.
 
 - 성준(B)은 Mock 없이 Event Manifest Producer를 구현할 수 있습니다.
 - 재욱(C)은 Mock Manifest를 소비해 Analytics Health Producer를 구현할 수 있습니다.
 - 호범(D)은 Mock Manifest, Mock Health, Mock Query Result를 소비해 Event Search와 Event Detail 화면을 구현할 수 있습니다.
 - 가현(A)은 Fixture와 shared contract 변경 시 영향을 받는 Consumer를 추적할 수 있습니다.
+- `packages/contracts`의 Zod Schema가 본 문서와 `fixtures/`의 3개 Mock Fixture를 검증합니다.

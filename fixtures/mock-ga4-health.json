@@ -4,9 +4,9 @@
   "propertyId": "123456789",
   "reportingTimezone": "Asia/Seoul",
   "summary": {
-    "healthy": 1,
+    "healthy": 0,
     "codeOnly": 1,
-    "ga4Only": 1,
+    "ga4Only": 0,
     "ga4Managed": 1,
     "parameterRegistrationGap": 1,
     "unresolved": 0
@@ -19,6 +19,10 @@
       "ga4ObservationState": "observed",
       "ga4ManagedState": "not_managed",
       "parameterRegistrationStates": [
+        {
+          "parameter": "value",
+          "state": "builtin"
+        },
         {
           "parameter": "currency",
           "state": "builtin"

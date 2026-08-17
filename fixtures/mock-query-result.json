@@ -25,6 +25,14 @@
     "resultStatus": "ok",
     "value": 1240,
     "previousValue": 1100,
+    "dateRange": {
+      "startDate": "2026-07-12",
+      "endDate": "2026-08-11"
+    },
+    "comparisonDateRange": {
+      "startDate": "2026-06-12",
+      "endDate": "2026-07-11"
+    },
     "reportingTimezone": "Asia/Seoul",
     "qualityFlags": [],
     "fetchedAt": "2026-08-11T00:05:00Z"

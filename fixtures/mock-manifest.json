@@ -5,13 +5,15 @@
   "events": [
     {
       "eventKey": "ga4:purchase_click",
+      "implementationKey": "ga4:purchase_click::src/PurchaseButton.tsx::PurchaseButton",
       "eventName": "purchase_click",
       "emitter": "ga4",
       "analyticsProvider": "ga4",
       "providerDetectionConfidence": "provider_exact",
       "parameters": [
         "value",
-        "currency"
+        "currency",
+        "campaign_slot"
       ],
       "source": {
         "file": "src/PurchaseButton.tsx",
@@ -22,10 +24,11 @@
     },
     {
       "eventKey": "gtm:lead_submit",
+      "implementationKey": "gtm:lead_submit::src/LeadForm.tsx::LeadForm",
       "eventName": "lead_submit",
       "emitter": "gtm",
       "analyticsProvider": "unknown",
-      "providerDetectionConfidence": "provider_exact",
+      "providerDetectionConfidence": "provider_unknown",
       "parameters": [
         "form_type"
       ],
@@ -38,6 +41,7 @@
     },
     {
       "eventKey": "ga4:custom_card_click",
+      "implementationKey": "ga4:custom_card_click::src/CustomCard.tsx::CustomCard",
       "eventName": "custom_card_click",
       "emitter": "ga4",
       "analyticsProvider": "ga4",
@@ -49,6 +53,21 @@
         "column": 5
       },
       "overlaySupported": false
+    },
+    {
+      "eventKey": "ga4:signup_complete",
+      "implementationKey": "ga4:signup_complete::src/SignupForm.tsx::SignupForm",
+      "eventName": "signup_complete",
+      "emitter": "ga4",
+      "analyticsProvider": "ga4",
+      "providerDetectionConfidence": "provider_exact",
+      "parameters": [],
+      "source": {
+        "file": "src/SignupForm.tsx",
+        "line": 20,
+        "column": 5
+      },
+      "overlaySupported": true
     }
   ],
   "bindings": [
@@ -56,6 +75,9 @@
       "atlasDomId": "atlas_demo_001",
       "eventKeys": [
         "ga4:purchase_click"
+      ],
+      "implementationKeys": [
+        "ga4:purchase_click::src/PurchaseButton.tsx::PurchaseButton"
       ],
       "element": {
         "type": "button",
@@ -70,6 +92,9 @@
       "eventKeys": [
         "gtm:lead_submit"
       ],
+      "implementationKeys": [
+        "gtm:lead_submit::src/LeadForm.tsx::LeadForm"
+      ],
       "element": {
         "type": "form",
         "file": "src/LeadForm.tsx",
@@ -83,7 +108,7 @@
     "emitters": [
       {
         "name": "ga4",
-        "eventCount": 2
+        "eventCount": 3
       },
       {
         "name": "gtm",
@@ -93,19 +118,20 @@
     "analyticsProviders": [
       {
         "name": "ga4",
-        "eventCount": 2
+        "eventCount": 3
       }
     ]
   },
   "warnings": [
     {
       "code": "CUSTOM_COMPONENT_OVERLAY_UNSUPPORTED",
-      "file": "src/CustomCard.tsx"
+      "file": "src/CustomCard.tsx",
+      "relatedImplementationKey": "ga4:custom_card_click::src/CustomCard.tsx::CustomCard"
     }
   ],
   "scanStats": {
     "filesScanned": 12,
     "durationMs": 180,
-    "eventsDetected": 3
+    "eventsDetected": 4
   }
 }
