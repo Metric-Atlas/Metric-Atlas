@@ -10,7 +10,8 @@ import {
 /**
  * ADR-001: Producer = C (GA4 Connector). D produces QueryPlan only, never QueryResult.
  * dateRange is always resolved to absolute dates; comparisonDateRange is required
- * when metricType is "comparison".
+ * when metricType is "comparison" and resultStatus is "ok" (ADR-003 refinement —
+ * a failed/empty comparison query has no meaningful comparison range to report).
  */
 export const QueryResult = z
   .object({
@@ -29,9 +30,11 @@ export const QueryResult = z
   .refine(
     (result) =>
       result.metricType !== "comparison" ||
+      result.resultStatus !== "ok" ||
       result.comparisonDateRange !== undefined,
     {
-      message: 'comparisonDateRange is required when metricType is "comparison"',
+      message:
+        'comparisonDateRange is required when metricType is "comparison" and resultStatus is "ok"',
       path: ["comparisonDateRange"],
     },
   );

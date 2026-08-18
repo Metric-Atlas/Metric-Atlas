@@ -96,6 +96,8 @@ interface EventManifest {
 
 ## 5. GA4 Connector Contract — C produces normalized result, C/D consume
 
+ADR-003으로 `packages/contracts`에 Zod Schema로 코드화되었습니다(`connector.ts`). `connector-sdk`는 이 타입들의 re-export barrel입니다.
+
 ### ConnectorContext
 필수 개념:
 - provider
@@ -113,6 +115,7 @@ interface EventManifest {
 - eventKey/eventName
 - dateRange
 - metric
+- `comparisonRange` — `metric="comparison"`일 때 필수 (ADR-003)
 - optional breakdowns
 - optional filters
 
@@ -123,6 +126,8 @@ interface EventManifest {
 - admin metadata support
 
 ## 6. NormalizedAnalyticsResult
+
+Connector 실행 결과입니다. D에 노출되는 `QueryResult`(docs/20 §6)와는 다른 레이어입니다 — `eventKey`가 optional이고 `providerMetadata`를 포함할 수 있습니다. C가 이를 `QueryResult`로 변환해 D에 전달합니다 (ADR-003, Module Boundary docs/04 §5).
 
 C가 Provider/Connector 실행 결과를 정규화하여 생산하고 D의 Query UI가 소비합니다. D는 Query Plan을 생산하지만 Connector Result의 Producer는 아닙니다.
 
@@ -148,7 +153,7 @@ interface NormalizedAnalyticsResult {
 }
 ```
 
-`dateRange`는 Property Reporting Time Zone 기준 절대 날짜입니다. `metricType="comparison"`이면 `comparisonDateRange`가 필수입니다 (ADR-001).
+`dateRange`는 Property Reporting Time Zone 기준 절대 날짜입니다. `metricType="comparison"`이고 `resultStatus="ok"`이면 `comparisonDateRange`가 필수입니다 (ADR-001, ADR-003 보정).
 
 ### DataQualityFlag
 

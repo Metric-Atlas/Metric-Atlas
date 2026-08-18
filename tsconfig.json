@@ -17,6 +17,12 @@
       "path": "packages/cli"
     },
     {
+      "path": "packages/connector-sdk"
+    },
+    {
+      "path": "packages/connector-ga4"
+    },
+    {
       "path": "apps/demo-react-vite"
     }
   ]

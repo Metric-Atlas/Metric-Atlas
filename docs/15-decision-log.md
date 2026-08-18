@@ -190,3 +190,28 @@ Status:
 - Date: 2026-08-18
 - Status: Accepted
 - Decision: B의 Contract Input(PR #4)을 Contract v0에 통합했다. `packages/detector` 등이 `@metric-atlas/contracts`를 실제로 의존하도록 마이그레이션하는 작업은 B 소유의 후속 PR로 진행한다. ADR-002.
+
+## DEC-040 — ProviderAgnosticQuery.comparisonRange approved
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: `metric="comparison"`일 때 `comparisonRange`를 필수로 확정한다. `QueryPlan.comparisonRange`와 대응된다. ADR-003.
+
+## DEC-041 — GA4 Connector contract codified in packages/contracts
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: `ConnectorContext`/`ConnectionResult`/`ProviderAgnosticQuery`/`ConnectorCapabilities`/`NormalizedAnalyticsResult`/`AnalyticsConnector`를 `packages/contracts`에 Zod/TS로 코드화한다. `connector-sdk`는 re-export barrel로 전환한다. ADR-003.
+
+## DEC-042 — NormalizedAnalyticsResult and QueryResult are distinct layers
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: `NormalizedAnalyticsResult`는 Connector 실행 결과(eventKey optional, providerMetadata 포함 가능), `QueryResult`는 D에 노출되는 결과 envelope(eventKey 필수, providerMetadata 없음)로 구분한다. C가 변환 책임을 진다. ADR-003.
+
+## DEC-043 — comparisonDateRange/comparisonRange required only when resultStatus="ok"
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: ADR-001의 "metricType=comparison이면 comparisonDateRange 필수" 규칙을 보정한다. `resultStatus`가 `ok`가 아니면 비교 기간이 없어도 된다. `QueryResult`와 `NormalizedAnalyticsResult` 양쪽에 적용. ADR-003.
+
+## DEC-044 — DateRange discriminated union bug fix
+- Date: 2026-08-18
+- Status: Accepted
+- Decision: `packages/contracts`의 `DateRange` Zod Schema가 `docs/20`에 문서화된 `never`-typed 판별 유니온 형태와 다르게 구현되어 있던 것을 수정한다. 계약 필드 변경이 아니라 코드-문서 정합성 버그 수정이다. ADR-003.
