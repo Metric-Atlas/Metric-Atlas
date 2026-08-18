@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+
+# spike 관찰 로그 (spike 브랜치의 자체 gitignore와 동일)
+spikes/*/out/
