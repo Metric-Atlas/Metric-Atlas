@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/detector" },
+    { "path": "packages/overlay" },
+    { "path": "packages/vite" },
+    { "path": "packages/cli" }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "name": "metric-atlas",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "typecheck": "tsc -b --pretty false",
+    "test": "tsc -b && vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "tsc -b && playwright test",
+    "verify": "tsc -b --pretty false && vitest run && playwright test",
+    "benchmark:detection": "tsc -b && node packages/vite/bench/build-overhead.mjs",
+    "scan": "node packages/cli/dist/bin.js scan"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/node": "^26.2.0",
+    "@vitejs/plugin-react": "^6.0.5",
+    "happy-dom": "^20.11.2",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  }
+}

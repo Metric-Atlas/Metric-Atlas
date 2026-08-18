@@ -12,6 +12,10 @@
 /packages/detector-mixpanel/ @member-b
 /packages/transform-babel/ @member-b
 /packages/overlay/ @member-b
+/packages/detector/ @member-b
+/packages/vite/ @member-b
+/packages/cli/ @member-b
+/playwright.config.ts @member-b
 
 /packages/dashboard/ @member-c
 /packages/connector-sdk/ @member-c
