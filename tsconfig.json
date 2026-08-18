@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
+    { "path": "packages/contracts" },
     { "path": "packages/detector" },
     { "path": "packages/overlay" },
     { "path": "packages/vite" },
