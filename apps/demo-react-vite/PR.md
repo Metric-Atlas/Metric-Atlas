@@ -22,6 +22,12 @@
 - 상세 → "이 이벤트로 질의 만들기" 딥링크
 - 질의 예시 칩, 후보 다중 상태 안내, comparison 변화율(%)
 
+## Screenshots
+
+| Health 요약 | 이벤트 탐색 | 질의 |
+| --- | --- | --- |
+| ![Health summary](./docs/screenshots/overview.png) | ![Event explorer](./docs/screenshots/events.png) | ![Query view](./docs/screenshots/query.png) |
+
 ## 미구현 범위
 
 - Overlay/Launcher, 실제 GA4 Connector, LLM 자연어 파싱(질문은 로컬 문자열 매칭만)

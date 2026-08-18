@@ -31,6 +31,12 @@ repo 루트 script 예시 (선택):
 }
 ```
 
+## Screenshots
+
+| Health 요약 | 이벤트 탐색 | 질의 |
+| --- | --- | --- |
+| ![Health summary](./docs/screenshots/overview.png) | ![Event explorer](./docs/screenshots/events.png) | ![Query view](./docs/screenshots/query.png) |
+
 ## 데이터
 
 | 파일 | 용도 |
