@@ -2,6 +2,7 @@ import { BetaAnalyticsDataClient } from "@google-analytics/data";
 import { v1beta as adminV1beta } from "@google-analytics/admin";
 import type {
   Ga4ApiClient,
+  Ga4CustomDimension,
   Ga4ListEventNamesRequest,
   Ga4RunReportRequest,
   Ga4RunReportResponse,
@@ -71,6 +72,15 @@ export function createGoogleGa4Client(credentials: Ga4Credentials): Ga4ApiClient
     async getPropertyTimezone(propertyId: string): Promise<string | undefined> {
       const [property] = await admin.getProperty({ name: `properties/${propertyId}` });
       return property.timeZone ?? undefined;
+    },
+
+    async listCustomDimensions(propertyId: string): Promise<Ga4CustomDimension[]> {
+      const [dimensions] = await admin.listCustomDimensions({
+        parent: `properties/${propertyId}`,
+      });
+      return dimensions
+        .filter((d) => Boolean(d.parameterName))
+        .map((d) => ({ parameterName: d.parameterName as string, scope: String(d.scope ?? "") }));
     },
   };
 }

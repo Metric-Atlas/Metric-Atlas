@@ -10,6 +10,7 @@ import type {
   ProviderAgnosticQuery,
 } from "@metric-atlas/connector-sdk";
 import { mapQualityFlags, type Ga4ResponseMetadata } from "./quality-flags.js";
+import type { CustomDimensionLookup } from "./reserved-parameter-registry.js";
 
 export interface Ga4RunReportRequest {
   propertyId: string;
@@ -31,11 +32,18 @@ export interface Ga4RunReportResponse {
   metadata: Ga4ResponseMetadata;
 }
 
+export interface Ga4CustomDimension {
+  parameterName: string;
+  scope: string;
+}
+
 /** 실제 GA4 클라이언트를 감싸는 최소 인터페이스 — 테스트에서 fake 주입 */
 export interface Ga4ApiClient {
   runReport(request: Ga4RunReportRequest): Promise<Ga4RunReportResponse>;
   /** ADR-007: eventName 필터 없이 eventName dimension으로 breakdown 조회 (GA4-only 판정용). */
   listEventNames(request: Ga4ListEventNamesRequest): Promise<Ga4RunReportResponse>;
+  /** Admin API listCustomDimensions (Spike §5, docs/06 §6 Custom Dimension Gap). */
+  listCustomDimensions(propertyId: string): Promise<Ga4CustomDimension[]>;
   getPropertyTimezone(propertyId: string): Promise<string | undefined>;
 }
 
@@ -69,6 +77,7 @@ function metricNumber(row: Ga4RunReportResponse["rows"][number] | undefined): nu
 
 export class Ga4Connector implements AnalyticsConnector {
   private timezoneCache = new Map<string, string>();
+  private customDimensionCache = new Map<string, ReadonlySet<string>>();
 
   constructor(
     private readonly client: Ga4ApiClient,
@@ -196,6 +205,25 @@ export class Ga4Connector implements AnalyticsConnector {
         eventNames: [],
         qualityFlags: [],
       };
+    }
+  }
+
+  /**
+   * Spike §5 / docs/06 §6 Custom Dimension Gap 판정 입력. Admin `listCustomDimensions`가
+   * 실패하면 status="unknown"(등록 0건과 구분, resolveParameterState가 그대로 unknown 처리).
+   * Property 등록 목록은 세션 중 자주 안 바뀌므로 timezone과 같은 방식으로 캐시한다.
+   */
+  async getCustomDimensionLookup(context: ConnectorContext): Promise<CustomDimensionLookup> {
+    const cached = this.customDimensionCache.get(context.propertyId);
+    if (cached) return { status: "ok", registeredParameterNames: cached };
+
+    try {
+      const dimensions = await this.client.listCustomDimensions(context.propertyId);
+      const registeredParameterNames = new Set(dimensions.map((d) => d.parameterName));
+      this.customDimensionCache.set(context.propertyId, registeredParameterNames);
+      return { status: "ok", registeredParameterNames };
+    } catch {
+      return { status: "unknown" };
     }
   }
 
