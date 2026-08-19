@@ -75,6 +75,9 @@ importers:
       '@metric-atlas/detector':
         specifier: workspace:*
         version: link:../detector
+      '@metric-atlas/runtime':
+        specifier: workspace:*
+        version: link:../runtime
 
   packages/contracts:
     dependencies:
@@ -108,6 +111,8 @@ importers:
       '@metric-atlas/detector':
         specifier: workspace:*
         version: link:../detector
+
+  packages/runtime: {}
 
   packages/vite:
     dependencies:

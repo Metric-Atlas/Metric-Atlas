@@ -1,12 +1,9 @@
 {
-  "name": "@metric-atlas/cli",
+  "name": "@metric-atlas/runtime",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "metric-atlas": "./dist/bin.js"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -20,9 +17,5 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false"
-  },
-  "dependencies": {
-    "@metric-atlas/detector": "workspace:*",
-    "@metric-atlas/runtime": "workspace:*"
   }
 }
