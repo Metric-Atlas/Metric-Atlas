@@ -20,33 +20,28 @@ export function resolveGa4ObservationState(resultStatus: ResultStatus): Ga4Obser
 }
 
 /**
- * ADR-006 reviewReason 코드 규칙. bucket 우선순위: unresolved > parameterRegistrationGap
- * > codeOnly(recent 여부로 세분) > quality flag(thresholding > other_row) > null.
- * codeState="detected"인 항목만 다루므로(이 모듈은 GA4-only/not_detected 경로는 다루지 않음)
- * "ga4Only" 버킷은 이 함수에서 도달하지 않는다.
+ * ADR-006 reviewReason 코드 규칙 — 딱 두 코드만 쓴다: `parameter_registration_gap`,
+ * `code_only_recent_data` (apps/demo-react-vite/src/labels.ts의 REVIEW_KO에 이미 있는
+ * 두 키와 정확히 일치, fixtures/mock-ga4-health.json 예시로 확정된 관례).
+ *
+ * quality flag(thresholding/other_row/recent)는 reviewReason과 무관하게 항상
+ * EventDetail에서 qualityFlags 배열을 통해 FLAG_KO로 별도 렌더링된다(labels.ts 확인).
+ * 그래서 reviewReason에 flag 기반 코드를 추가로 넣으면 (a) REVIEW_KO에 없는 키라
+ * EventCard/OverviewView에서 "검토 사유 없음"으로 잘못 표시되고 (b) EventDetail에서는
+ * 같은 문구가 중복 표시된다. 두 established 코드 외에는 전부 null을 반환해
+ * UI(labels.ts REVIEW_KO)가 확장되기 전까지 이 계약을 어기지 않는다.
  */
 export function computeReviewReason(
   item: Pick<HealthItem, "codeState" | "ga4ObservationState" | "ga4ManagedState" | "parameterRegistrationStates">,
-  resultStatus: ResultStatus,
   qualityFlags: readonly string[],
 ): string | null {
   // eventKey/eventName은 classifyHealthItemBucket이 읽지 않는 필드라 더미로 채운다.
   const bucket = classifyHealthItemBucket({ eventKey: "", eventName: "", ...item });
 
-  if (bucket === "unresolved") {
-    if (resultStatus === "unauthorized") return "ga4_query_unauthorized";
-    if (resultStatus === "unsupported") return "ga4_query_unsupported";
-    if (resultStatus === "error") return "ga4_query_error";
-    return "unresolved_needs_review";
-  }
   if (bucket === "parameterRegistrationGap") return "parameter_registration_gap";
-  if (bucket === "codeOnly") {
-    return qualityFlags.includes("recent_data_may_change")
-      ? "code_only_recent_data"
-      : "code_only_not_observed";
+  if (bucket === "codeOnly" && qualityFlags.includes("recent_data_may_change")) {
+    return "code_only_recent_data";
   }
-  if (qualityFlags.includes("subject_to_thresholding")) return "thresholding_may_affect_accuracy";
-  if (qualityFlags.includes("other_row_data_loss")) return "other_row_data_loss";
   return null;
 }
 
@@ -67,7 +62,6 @@ export function buildHealthItemForDetectedEvent(input: {
 
   const reviewReason = computeReviewReason(
     { codeState: "detected", ga4ObservationState, ga4ManagedState, parameterRegistrationStates },
-    queryResult.resultStatus,
     queryResult.qualityFlags,
   );
 

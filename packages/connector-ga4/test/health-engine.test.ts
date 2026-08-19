@@ -106,54 +106,40 @@ describe("computeReviewReason (ADR-006 우선순위)", () => {
     ...overrides,
   });
 
-  test("unresolved: unauthorized/unsupported/error는 각각 다른 code", () => {
-    const unresolved = detected({ ga4ObservationState: "unknown" });
-    expect(computeReviewReason(unresolved, "unauthorized", [])).toBe("ga4_query_unauthorized");
-    expect(computeReviewReason(unresolved, "unsupported", [])).toBe("ga4_query_unsupported");
-    expect(computeReviewReason(unresolved, "error", [])).toBe("ga4_query_error");
+  test("parameterRegistrationGap → parameter_registration_gap", () => {
+    const item = detected({
+      parameterRegistrationStates: [{ parameter: "campaign_slot", state: "not_registered" }],
+    });
+    expect(computeReviewReason(item, [])).toBe("parameter_registration_gap");
   });
 
-  test("codeOnly인데 recent flag 없으면 code_only_not_observed", () => {
+  test("codeOnly + recent flag → code_only_recent_data", () => {
     const item = detected({ ga4ObservationState: "not_observed" });
-    expect(computeReviewReason(item, "no_rows", [])).toBe("code_only_not_observed");
+    expect(computeReviewReason(item, ["recent_data_may_change"])).toBe("code_only_recent_data");
   });
 
-  test("parameterRegistrationGap은 codeOnly보다 우선하지 않는다 (bucket 우선순위상 parameterRegistrationGap이 먼저 체크됨)", () => {
-    // ga4ObservationState=not_observed + not_registered 파라미터가 같이 있어도
-    // classifyHealthItemBucket 우선순위상 parameterRegistrationGap이 codeOnly보다 먼저 걸린다.
+  test("codeOnly인데 recent flag 없으면 null (REVIEW_KO에 없는 코드를 만들지 않는다, labels.ts 확인)", () => {
+    const item = detected({ ga4ObservationState: "not_observed" });
+    expect(computeReviewReason(item, [])).toBeNull();
+  });
+
+  test("parameterRegistrationGap이 codeOnly보다 우선한다 (bucket 우선순위)", () => {
     const item = detected({
       ga4ObservationState: "not_observed",
       parameterRegistrationStates: [{ parameter: "campaign_slot", state: "not_registered" }],
     });
-    expect(computeReviewReason(item, "no_rows", ["recent_data_may_change"])).toBe(
-      "parameter_registration_gap",
-    );
+    expect(computeReviewReason(item, ["recent_data_may_change"])).toBe("parameter_registration_gap");
   });
 
-  test("healthy + thresholding flag → thresholding_may_affect_accuracy (other_row보다 우선)", () => {
+  test("healthy + quality flag가 있어도 reviewReason은 null이다 — flag는 qualityFlags로 별도 렌더링되므로 중복 코드를 만들지 않는다", () => {
     const item = detected();
-    expect(
-      computeReviewReason(item, "ok", ["subject_to_thresholding", "other_row_data_loss"]),
-    ).toBe("thresholding_may_affect_accuracy");
+    expect(computeReviewReason(item, ["subject_to_thresholding"])).toBeNull();
+    expect(computeReviewReason(item, ["other_row_data_loss"])).toBeNull();
+    expect(computeReviewReason(item, [])).toBeNull();
   });
 
-  test("healthy + other_row_data_loss만 → other_row_data_loss", () => {
-    const item = detected();
-    expect(computeReviewReason(item, "ok", ["other_row_data_loss"])).toBe("other_row_data_loss");
-  });
-
-  test("healthy, flag 없음 → null", () => {
-    const item = detected();
-    expect(computeReviewReason(item, "ok", [])).toBeNull();
-  });
-
-  test("ga4Managed(정상 관리 이벤트)는 flag가 있어도 리뷰 불필요라 flag 규칙이 적용된다", () => {
-    // ga4ManagedState=managed는 classifyHealthItemBucket에서 ga4Managed 버킷으로 분류되고,
-    // computeReviewReason은 unresolved/parameterRegistrationGap/codeOnly가 아니므로 flag 규칙으로 내려간다.
+  test("ga4Managed도 flag와 무관하게 reviewReason은 null (정상 분류, docs/06 §2)", () => {
     const item = detected({ ga4ManagedState: "managed" });
-    expect(computeReviewReason(item, "ok", [])).toBeNull();
-    expect(computeReviewReason(item, "ok", ["subject_to_thresholding"])).toBe(
-      "thresholding_may_affect_accuracy",
-    );
+    expect(computeReviewReason(item, ["subject_to_thresholding"])).toBeNull();
   });
 });

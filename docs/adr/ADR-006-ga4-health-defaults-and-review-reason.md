@@ -36,23 +36,26 @@ Spike §4 실측대로 확정한다 (이미 `connector-ga4/src/quality-flags.ts`
 - `metadata.dataLossFromOtherRow === true`일 때만 `other_row_data_loss`. 동일하게 부재=false.
 - 조회 종료일이 `now - recentWindowHours` 이후면 `recent_data_may_change`.
 
-### 3. `reviewReason` 코드 규칙 — 신규 확정
+### 3. `reviewReason` 코드 규칙 — 확정 (기존 Dashboard 관례에 맞춤)
 
-`docs/03` §6의 화면 문구 3종을 기계 판독 가능한 reason code로 대응시킨다. Dashboard(D 소비)는 code → 화면 문구를 자체 매핑한다 (문구 자체는 `docs/03` §6에 이미 있음, code는 이 ADR에서 신설):
+`apps/demo-react-vite/src/labels.ts`의 `REVIEW_KO`를 확인한 결과, D가 이미 `fixtures/mock-ga4-health.json` 예시를 기준으로 정확히 **두 개의 reviewReason code**만 소비하도록 구현해 두었다: `parameter_registration_gap`, `code_only_recent_data`.
 
-| reviewReason code | 조건 | docs/03 §6 대응 문구 |
-|---|---|---|
-| `parameter_registration_gap` | Health bucket = `parameterRegistrationGap` | (Parameter Registration Gap 카테고리, docs/06 §2) |
-| `code_only_recent_data` | bucket = `codeOnly` **그리고** `latestMeasurement.qualityFlags`에 `recent_data_may_change` 포함 | "최근 데이터는 아직 변동될 수 있습니다." |
-| `code_only_not_observed` | bucket = `codeOnly`, recent flag 없음 | (recent 문구 없이 Code only 카테고리만) |
-| `thresholding_may_affect_accuracy` | bucket ≠ unresolved/parameterRegistrationGap/codeOnly **그리고** `subject_to_thresholding` 포함 | "GA4 데이터 임계값 처리의 영향을 받을 수 있습니다." |
-| `other_row_data_loss` | 위와 동일 조건, `other_row_data_loss` 포함 (thresholding과 동시 발생 시 thresholding 우선) | "고카디널리티로 인해 일부 값이 (other)에 집계될 수 있습니다." |
-| `ga4_query_unauthorized` / `ga4_query_unsupported` / `ga4_query_error` | bucket = `unresolved`, 해당 `resultStatus` | (§8 Result Status, 문구는 Dashboard 후속 결정) |
-| `null` | bucket = `healthy` / `ga4Managed` (flag 없음), 또는 `ga4Only` | 리뷰 불필요 |
+또한 `EventDetail.tsx`는 `reviewReason`과 무관하게 `latestMeasurement.qualityFlags` 배열을 **항상** `FLAG_KO`로 개별 렌더링한다 (`recent_data_may_change`/`subject_to_thresholding`/`other_row_data_loss` 문구가 이미 `FLAG_KO`에 있음). 따라서 `reviewReason`에 quality-flag 기반 code(예: `thresholding_may_affect_accuracy`)를 추가로 두면:
 
-**우선순위**: unresolved(쿼리 실패) > parameterRegistrationGap > codeOnly(recent 여부로 세분) > quality flag(thresholding > other_row) > null. 구조적 이슈(파라미터 미등록, 코드만 존재)가 데이터 품질 flag보다 먼저 표시되어야 한다는 판단 — 후자는 "정상 관측인데 참고할 캐비어트"이고 전자는 "관측/등록 자체의 문제"이기 때문이다.
+- `REVIEW_KO`에 없는 키라 `EventCard`/`OverviewView`가 "검토 사유 없음"으로 **잘못** 표시하고,
+- `EventDetail`에서는 이미 `FLAG_KO`가 표시하는 문구와 **중복**된다.
 
-이 규칙은 `fixtures/mock-ga4-health.json`(Phase 0에서 이미 승인된 예시)의 `purchase_click`(→`parameter_registration_gap`)과 `signup_complete`(→`code_only_recent_data`)를 정확히 재현한다 — 즉 기존에 암묵적으로 합의된 예시와 일치하는 규칙임을 역으로 확인했다.
+**확정 규칙** (기존 UI 소비 관례 그대로, 이 ADR은 새 code를 만들지 않는다):
+
+| reviewReason code | 조건 |
+|---|---|
+| `parameter_registration_gap` | Health bucket = `parameterRegistrationGap` |
+| `code_only_recent_data` | bucket = `codeOnly` **그리고** `latestMeasurement.qualityFlags`에 `recent_data_may_change` 포함 |
+| `null` | 그 외 전부 — `codeOnly`(recent flag 없음), `healthy`/`ga4Managed`(quality flag 유무 무관, flag는 `FLAG_KO`로 별도 표시됨), `ga4Only`, `unresolved` 포함 |
+
+**우선순위**: parameterRegistrationGap > codeOnly+recent > null. quality flag(thresholding/other_row/recent)는 `reviewReason`이 아니라 `qualityFlags` 배열 자체로 전달되며 Dashboard가 `FLAG_KO`로 독립 렌더링하므로 이 함수의 책임이 아니다. `unresolved` 버킷(쿼리 실패)에 대한 code는 `REVIEW_KO`가 아직 없어 이번 범위에서는 `null`로 두고, 후속 UI 작업 필요 시 D와 함께 `REVIEW_KO`를 확장한다.
+
+이 규칙은 `fixtures/mock-ga4-health.json`(Phase 0에서 이미 승인된 예시)의 `purchase_click`(→`parameter_registration_gap`)과 `signup_complete`(→`code_only_recent_data`)를 정확히 재현한다.
 
 ## Producers affected
 
@@ -60,13 +63,13 @@ Spike §4 실측대로 확정한다 (이미 `connector-ga4/src/quality-flags.ts`
 
 ## Consumers affected
 
-- D: Dashboard가 `reviewReason` code를 문구로 매핑할 때 위 표를 그대로 사용
+- D: 변경 없음 — `apps/demo-react-vite/src/labels.ts`의 기존 `REVIEW_KO`/`FLAG_KO` 그대로 소비 가능 (새 code 없음)
 - A: 영향 없음 (계약 필드 타입 변경 없음, `reviewReason`은 이미 `z.string().nullable().optional()`)
 
 ## Alternatives
 
 - `reviewReason`에 화면 문구 자체를 담기 — 기각. i18n/문구 변경 시 계약을 흔들게 됨. code 방식이 Contract-UI 분리 원칙(docs/04)에 맞음.
-- Quality flag 기반 reviewReason을 bucket과 무관하게 항상 우선 — 기각. 구조적 문제(파라미터 미등록)를 데이터 품질 caveat보다 먼저 봐야 한다는 것이 docs/06 §2 "즉시 구현 오류라고 단정하지 않음" 원칙과 더 맞음.
+- thresholding/other_row/recent quality flag마다 별도 reviewReason code 발급(`thresholding_may_affect_accuracy` 등) — 최초 초안에서 시도했으나 기각. `apps/demo-react-vite`가 이미 `qualityFlags`를 `reviewReason`과 독립적으로 `FLAG_KO`로 렌더링하고 있어(labels.ts, EventDetail.tsx), 추가 code는 `REVIEW_KO`에 없는 미등록 키가 되어 "검토 사유 없음" 오표시와 문구 중복을 동시에 일으킨다. 기존 UI 소비 관례(코드 2종)를 그대로 따르는 쪽으로 수정했다.
 
 ## Compatibility
 
