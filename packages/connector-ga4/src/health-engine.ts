@@ -1,11 +1,20 @@
 import type {
+  AnalyticsHealthReport,
   DetectedEvent,
+  EventManifest,
   Ga4ObservationState,
   HealthItem,
+  HealthSummary,
   ResultStatus,
 } from "@metric-atlas/contracts";
 import { classifyHealthItemBucket } from "@metric-atlas/contracts";
-import type { Ga4ObservedEventsResult, NormalizedAnalyticsResult } from "@metric-atlas/connector-sdk";
+import type {
+  AnalyticsConnector,
+  ConnectorContext,
+  DateRange,
+  Ga4ObservedEventsResult,
+  NormalizedAnalyticsResult,
+} from "@metric-atlas/connector-sdk";
 import { resolveGa4ManagedState } from "./managed-event-registry.js";
 import { resolveParameterState, type CustomDimensionLookup } from "./reserved-parameter-registry.js";
 
@@ -115,4 +124,69 @@ export function buildHealthItemsForGa4OnlyEvents(input: {
       // ga4Only/ga4Managed 버킷은 REVIEW_KO에 코드가 없어 항상 null (computeReviewReason과 동일 관례).
       reviewReason: null,
     }));
+}
+
+/**
+ * Manifest + Connector + Registry를 조합해 실제 AnalyticsHealthReport를 만든다
+ * (docs/06 §2, docs/20 §5). analyticsProvider="ga4"인 Manifest 이벤트만 대상으로
+ * 한다(DEC-033). `customDimensions`는 호출자가 `Ga4Connector.getCustomDimensionLookup()`
+ * 으로 한 번 조회해 넘긴다 — Property당 자주 안 바뀌는 값을 이벤트마다 다시 조회하지 않기 위함.
+ *
+ * dateRange는 절대 날짜여야 한다 — preset 해석은 아직 Connector가 지원하지 않아
+ * (connector.ts asAbsolute) preset을 넘기면 모든 항목이 unresolved가 된다.
+ */
+export async function buildAnalyticsHealthReport(input: {
+  connector: AnalyticsConnector;
+  context: ConnectorContext;
+  manifest: EventManifest;
+  dateRange: DateRange;
+  customDimensions: CustomDimensionLookup;
+  reportingTimezone: string;
+  now?: () => Date;
+}): Promise<AnalyticsHealthReport> {
+  const { connector, context, manifest, dateRange, customDimensions, reportingTimezone } = input;
+  const now = input.now ?? (() => new Date());
+
+  // GA4 Health는 analyticsProvider="ga4" Manifest 이벤트만 다룬다 (DEC-033).
+  const ga4Events = manifest.events.filter((event) => event.analyticsProvider === "ga4");
+  const manifestEventNames = new Set(ga4Events.map((event) => event.eventName));
+
+  const detectedItems = await Promise.all(
+    ga4Events.map(async (event) => {
+      const queryResult = await connector.query(context, {
+        eventKey: event.eventKey,
+        eventName: event.eventName,
+        metric: "event_count",
+        dateRange,
+      });
+      return buildHealthItemForDetectedEvent({ event, queryResult, customDimensions });
+    }),
+  );
+
+  const observedEvents = await connector.listObservedEventNames(context, dateRange);
+  const ga4OnlyItems = buildHealthItemsForGa4OnlyEvents({ manifestEventNames, observedEvents });
+
+  const items = [...detectedItems, ...ga4OnlyItems];
+
+  const summary: HealthSummary = {
+    healthy: 0,
+    codeOnly: 0,
+    ga4Only: 0,
+    ga4Managed: 0,
+    parameterRegistrationGap: 0,
+    unresolved: 0,
+  };
+  for (const item of items) summary[classifyHealthItemBucket(item)] += 1;
+
+  // docs/20 §5: DYNAMIC_EVENT_NAME 경고는 events[]에 없어 위 루프로 안 잡히므로 별도 합산한다.
+  summary.unresolved += manifest.warnings.filter((w) => w.code === "DYNAMIC_EVENT_NAME").length;
+
+  return {
+    generatedAt: now().toISOString(),
+    provider: "ga4",
+    propertyId: context.propertyId,
+    reportingTimezone,
+    summary,
+    items,
+  };
 }
