@@ -19,6 +19,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@metric-atlas/contracts": "workspace:*",
     "@metric-atlas/detector": "workspace:*",
     "@metric-atlas/overlay": "workspace:*",
     "minimatch": "^10.2.6"

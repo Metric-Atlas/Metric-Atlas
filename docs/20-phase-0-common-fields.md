@@ -3,8 +3,8 @@
 - Status: Accepted
 - Approver: Member A (가현)
 - Domain input owners: Member B/C/D
-- Accepted by: ADR-001 (`docs/adr/ADR-001-phase0-contract-v0-freeze.md`), 2026-08-18; extended by ADR-002 (`docs/adr/ADR-002-workspace-baseline-and-b-contract-input.md`), 2026-08-18
-- Contract Input received: C (PR #1), B (PR #4, `docs/21-pre-phase-0-b-contract-input.md`). D 입력은 아직 미제출 — 도착 시 충돌 항목은 후속 ADR로 조정.
+- Accepted by: ADR-001 (`docs/adr/ADR-001-phase0-contract-v0-freeze.md`), 2026-08-18; extended by ADR-002 (`docs/adr/ADR-002-workspace-baseline-and-b-contract-input.md`), 2026-08-18; extended by ADR-003 (`docs/adr/ADR-003-connector-contract-v0.md`), 2026-08-18
+- Contract Input received: C (PR #1, PR #8), B (PR #4, `docs/21-pre-phase-0-b-contract-input.md`), D (PR #7, `docs/contract-inputs/d-runtime-auth-deployment-options.md` — Runtime 인증/배포 옵션, AuthMode 계약 포함 여부는 별도 ADR 필요로 아직 미결).
 
 ## 1. 목적
 
@@ -251,7 +251,7 @@ interface QueryResult {
 
 **`dateRange`는 절대 날짜 (ADR-001).** `QueryPlan.dateRange`가 `preset`이어도 `QueryResult.dateRange`는 Property Reporting Time Zone 기준으로 해석된 `{ startDate, endDate }` 형태로 반환합니다.
 
-**`comparisonDateRange` (ADR-001).** `metricType="comparison"`인 경우 필수이며, 비교 대상 이전 기간의 절대 날짜를 담습니다. `comparison`이 아니면 생략합니다.
+**`comparisonDateRange` (ADR-001, ADR-003 보정).** `metricType="comparison"`이고 `resultStatus="ok"`인 경우 필수이며, 비교 대상 이전 기간의 절대 날짜를 담습니다. 그 외에는 생략합니다.
 
 ### DateRange
 

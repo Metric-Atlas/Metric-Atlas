@@ -3,7 +3,7 @@ import type {
   DetectedEvent,
   EventManifest,
   TrackingEmitter,
-} from "@metric-atlas/detector";
+} from "@metric-atlas/contracts";
 
 export interface ChangedEvent {
   eventName: string;
@@ -130,14 +130,14 @@ export function formatMarkdownReport(diff: ManifestDiff): string {
     `- ! Dynamic/unresolved: ${diff.warningCounts.dynamicOrUnresolved}`,
     `- ! Possible wrapper usage: ${diff.warningCounts.possibleWrapperUsage}`,
   ];
-  appendList(lines, "Added events", diff.addedEvents.map((event) => `\`${event}\``));
-  appendList(lines, "Removed events", diff.removedEvents.map((event) => `\`${event}\``));
+  appendList(lines, "Added events", diff.addedEvents.map(markdownCode));
+  appendList(lines, "Removed events", diff.removedEvents.map(markdownCode));
   appendList(
     lines,
     "Changed emitter/provider",
     diff.changedEvents.map(
       (event) =>
-        `\`${event.eventName}\`: ${event.fromEmitter}/${event.fromProvider} → ${event.toEmitter}/${event.toProvider}`,
+        `${markdownCode(event.eventName)}: ${event.fromEmitter}/${event.fromProvider} → ${event.toEmitter}/${event.toProvider}`,
     ),
   );
 
@@ -150,10 +150,10 @@ export function formatMarkdownReport(diff: ManifestDiff): string {
   if (ga4Added.length || ga4Removed.length) {
     lines.push("", "### GA4 custom parameter changes", "");
     for (const change of ga4Added) {
-      lines.push(`- + \`${change.eventKey}\`: \`${change.parameter}\``);
+      lines.push(`- + ${markdownCode(change.eventKey)}: ${markdownCode(change.parameter)}`);
     }
     for (const change of ga4Removed) {
-      lines.push(`- - \`${change.eventKey}\`: \`${change.parameter}\``);
+      lines.push(`- - ${markdownCode(change.eventKey)}: ${markdownCode(change.parameter)}`);
     }
   }
   return `${lines.join("\n")}\n`;
@@ -189,4 +189,8 @@ function sortParameterChanges(changes: ParameterChange[]): ParameterChange[] {
       `${right.eventKey}:${right.parameter}`,
     ),
   );
+}
+
+function markdownCode(value: string): string {
+  return `\`${value.replace(/[\r\n]+/g, " ").replace(/`/g, "\\`")}\``;
 }

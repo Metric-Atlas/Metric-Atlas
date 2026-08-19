@@ -1,6 +1,6 @@
 # @metric-atlas/demo-react-vite
 
-Fixture 기반 Local Demo Dashboard. 저장된 fixture JSON만 읽어 Dashboard / Search / Query UI를 보여줍니다.
+Runtime 우선 + Fixture fallback 기반 Local Demo Dashboard입니다. Vite dev server의 실제 Detector Manifest를 Overlay와 Dashboard가 소비하고, Health/Query Runtime artifact가 없으면 저장된 fixture로 안전하게 fallback합니다.
 실제 GA4·LLM 호출, Secret 입력 UI, credential 저장은 없습니다.
 
 ## 실행
@@ -11,6 +11,7 @@ pnpm --filter @metric-atlas/demo-react-vite dev        # http://localhost:5180
 pnpm --filter @metric-atlas/demo-react-vite test
 pnpm --filter @metric-atlas/demo-react-vite typecheck
 pnpm --filter @metric-atlas/demo-react-vite build
+pnpm test:e2e
 ```
 
 workspace 인식이 안 되면 repo 루트 `pnpm-workspace.yaml`에 `apps/*`를 추가하세요.
@@ -46,6 +47,10 @@ repo 루트 script 예시 (선택):
 | `fixtures/mock-query-result.json` | QueryPlan + comparison 결과 |
 
 fixture는 **읽기 전용**입니다. 변경 없음.
+
+## Overlay
+
+Demo App은 `@metric-atlas/vite`를 사용해 source를 수정하지 않고 build output에만 `data-atlas-id`를 주입합니다. 화면의 `GA4 demo event`와 `GTM demo event`는 외부 전송 없이 브라우저 CustomEvent만 발생시키는 탐지/Overlay showcase입니다. Production build의 `.metric-atlas/manifest.json`은 `metric-atlas serve ./dist`가 `/__metric-atlas/api/manifest`로 제공합니다.
 
 ## 구조
 

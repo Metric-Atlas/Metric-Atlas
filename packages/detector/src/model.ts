@@ -1,30 +1,26 @@
-export type AnalyticsProvider =
-  | "ga4"
-  | "mixpanel"
-  | "meta"
-  | "posthog"
-  | "amplitude"
-  | "unknown";
+import type {
+  AnalyticsProvider,
+  DetectedEvent,
+  ElementBinding,
+  EventManifest,
+  ScanWarning,
+  TrackingEmitter,
+} from "@metric-atlas/contracts";
 
-export type TrackingEmitter =
-  | "ga4"
-  | "gtm"
-  | "mixpanel"
-  | "meta"
-  | "posthog"
-  | "amplitude"
-  | "custom"
-  | "unknown";
-
-export type ProviderDetectionConfidence =
-  | "provider_exact"
-  | "provider_configured"
-  | "provider_unknown";
-
-export type BindingConfidence =
-  | "binding_exact"
-  | "binding_inferred"
-  | "binding_unresolved";
+export type {
+  AnalyticsProvider,
+  BindingConfidence,
+  DetectedEvent,
+  ElementBinding,
+  ElementLocation,
+  EventManifest,
+  ManifestSummaries,
+  ProviderDetectionConfidence,
+  ScanStats,
+  ScanWarning,
+  SourceLocation,
+  TrackingEmitter,
+} from "@metric-atlas/contracts";
 
 export type ScanWarningCode =
   | "DYNAMIC_EVENT_NAME"
@@ -36,49 +32,6 @@ export type ScanWarningCode =
   | "PORTAL_OVERLAY_UNSUPPORTED"
   | "ATLAS_ATTRIBUTE_CONFLICT";
 
-export interface SourceLocation {
-  file: string;
-  line: number;
-  column?: number;
-}
-
-export interface ElementLocation {
-  type: string;
-  file: string;
-  line: number;
-  column?: number;
-}
-
-export interface DetectedEvent {
-  eventKey: string;
-  /** Proposed Phase 0 extension. Always emitted by this producer. */
-  implementationKey?: string;
-  eventName: string;
-  emitter: TrackingEmitter;
-  analyticsProvider: AnalyticsProvider;
-  providerDetectionConfidence: ProviderDetectionConfidence;
-  parameters: string[];
-  source: SourceLocation;
-  overlaySupported: boolean;
-}
-
-export interface ElementBinding {
-  atlasDomId: string;
-  eventKeys: string[];
-  /** Proposed Phase 0 extension. Always emitted by this producer. */
-  implementationKeys?: string[];
-  element: ElementLocation;
-  bindingConfidence: BindingConfidence;
-}
-
-export interface ScanWarning {
-  code: ScanWarningCode | (string & {});
-  file?: string;
-  line?: number;
-  message?: string;
-  relatedImplementationKey?: string;
-}
-
 export interface TrackingSummary {
   name: TrackingEmitter;
   eventCount: number;
@@ -87,28 +40,6 @@ export interface TrackingSummary {
 export interface ProviderSummary {
   name: AnalyticsProvider;
   eventCount: number;
-}
-
-export interface ManifestSummaries {
-  emitters: TrackingSummary[];
-  analyticsProviders: ProviderSummary[];
-}
-
-export interface ScanStats {
-  filesScanned: number;
-  durationMs: number;
-  eventsDetected: number;
-}
-
-export interface EventManifest {
-  version: string;
-  buildId: string;
-  generatedAt: string;
-  events: DetectedEvent[];
-  bindings: ElementBinding[];
-  warnings: ScanWarning[];
-  summaries?: ManifestSummaries;
-  scanStats?: ScanStats;
 }
 
 export interface SourceTransformResult {

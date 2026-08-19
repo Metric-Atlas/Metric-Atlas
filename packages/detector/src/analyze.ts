@@ -246,11 +246,7 @@ export function analyzeSource(
     bindings.push({
       atlasDomId,
       eventKeys: unique(boundEvents.map((event) => event.eventKey)),
-      implementationKeys: unique(
-        boundEvents.flatMap((event) =>
-          event.implementationKey ? [event.implementationKey] : [],
-        ),
-      ),
+      implementationKeys: unique(boundEvents.map((event) => event.implementationKey)),
       element: {
         type: target.elementType,
         file: options.file,

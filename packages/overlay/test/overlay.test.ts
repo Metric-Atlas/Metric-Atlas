@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { EventManifest } from "@metric-atlas/detector";
+import type { EventManifest } from "@metric-atlas/contracts";
 import {
   METRIC_ATLAS_OVERLAY_TAG,
   mountMetricAtlasOverlay,
@@ -10,6 +10,7 @@ import {
 afterEach(() => {
   document.body.replaceChildren();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function manifest(): EventManifest {
@@ -84,5 +85,29 @@ describe("MetricAtlasOverlayElement", () => {
     const second = mountMetricAtlasOverlay();
     expect(second).toBe(first);
     expect(document.querySelectorAll(METRIC_ATLAS_OVERLAY_TAG)).toHaveLength(1);
+  });
+
+  it("rejects a fetched manifest that is missing Contract v0 fields", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          version: "0.1",
+          buildId: "invalid",
+          events: [{ eventKey: "ga4:missing-fields" }],
+          bindings: [],
+          warnings: [],
+        }),
+      }),
+    );
+    const overlay = mountMetricAtlasOverlay();
+
+    await overlay.loadManifest("/__metric-atlas/api/manifest");
+
+    expect(overlay.manifest).toBeNull();
+    expect(overlay.shadowRoot!.querySelector("#status")!.textContent).toBe(
+      "Manifest response has an invalid shape",
+    );
   });
 });

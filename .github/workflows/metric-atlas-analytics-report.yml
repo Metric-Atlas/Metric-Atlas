@@ -1,0 +1,92 @@
+name: Metric Atlas Analytics Report
+
+on:
+  pull_request:
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - ".github/actions/analytics-report/**"
+      - ".github/workflows/metric-atlas-analytics-report.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: metric-atlas-report-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  analytics-report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - id: report
+        uses: ./.github/actions/analytics-report
+        with:
+          base-ref: ${{ github.event.pull_request.base.sha }}
+          head-ref: ${{ github.event.pull_request.head.sha }}
+          detectors: ga4,gtm
+          include: |
+            apps/**/src/**/*.{js,jsx,ts,tsx}
+
+      - name: Upload manifests and report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: metric-atlas-analytics-report
+          path: |
+            ${{ steps.report.outputs.report-path }}
+            ${{ steps.report.outputs.manifest-dir }}
+
+  comment:
+    needs: analytics-report
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Download report artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: metric-atlas-analytics-report
+          path: ${{ runner.temp }}/metric-atlas-report
+
+      - name: Create or update PR comment
+        continue-on-error: true
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          REPORT_PATH: ${{ runner.temp }}/metric-atlas-report/metric-atlas-analytics-report.md
+        with:
+          script: |
+            const fs = require("node:fs");
+            const marker = "<!-- metric-atlas-analytics-report -->";
+            const report = fs.readFileSync(process.env.REPORT_PATH, "utf8");
+            const body = `${marker}\n${report}`.slice(0, 60000);
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) =>
+              comment.user?.type === "Bot" && comment.body?.includes(marker),
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

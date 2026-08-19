@@ -3,6 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { build } from "vite";
+import { EventManifest } from "@metric-atlas/contracts";
+import { serveRuntime } from "../../runtime/src/index.ts";
 import metricAtlas from "../src/index.ts";
 
 const temporaryDirectories: string[] = [];
@@ -46,6 +48,38 @@ describe("Metric Atlas Vite plugin", () => {
     expect(htmlTags[0].children).toContain("virtual:metric-atlas-overlay-entry");
   });
 
+  it("enables non-MVP detectors only through explicit plugin config", async () => {
+    const root = path.resolve("fixture-project");
+    const source = `export const App = () => <button onClick={() => mixpanel.track("mix_open")}>Open</button>;`;
+    const defaultPlugin = metricAtlas({ buildId: "default-detectors" });
+    await (defaultPlugin.configResolved as Function)({ root, logger: { info: vi.fn() } });
+    await (defaultPlugin.buildStart as Function).call({});
+    await (defaultPlugin.transform as Function).call(
+      {},
+      source,
+      path.join(root, "src", "Default.tsx"),
+      { ssr: false, moduleType: "js" },
+    );
+    expect(defaultPlugin.api.getManifest().events).toEqual([]);
+
+    const optInPlugin = metricAtlas({
+      buildId: "opt-in-detectors",
+      detectors: ["ga4", "gtm", "mixpanel"],
+    });
+    await (optInPlugin.configResolved as Function)({ root, logger: { info: vi.fn() } });
+    await (optInPlugin.buildStart as Function).call({});
+    const transformed = await (optInPlugin.transform as Function).call(
+      {},
+      source,
+      path.join(root, "src", "OptIn.tsx"),
+      { ssr: false, moduleType: "js" },
+    );
+    expect(transformed.code).toContain("data-atlas-id");
+    expect(optInPlugin.api.getManifest().events[0]?.eventKey).toBe(
+      "mixpanel:mix_open",
+    );
+  });
+
   it("emits the manifest and bundles the overlay in a real Vite build", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "metric-atlas-vite-"));
     temporaryDirectories.push(root);
@@ -78,7 +112,7 @@ describe("Metric Atlas Vite plugin", () => {
     });
 
     const manifest = JSON.parse(
-      await readFile(path.join(root, "dist", "metric-atlas", "manifest.json"), "utf8"),
+      await readFile(path.join(root, "dist", ".metric-atlas", "manifest.json"), "utf8"),
     );
     expect(manifest.events[0]).toMatchObject({
       eventKey: "ga4:built_click",
@@ -96,5 +130,17 @@ describe("Metric Atlas Vite plugin", () => {
     ).join("\n");
     expect(javaScript).toContain("data-atlas-id");
     expect(javaScript).toContain("metric-atlas-overlay");
+
+    const runtime = await serveRuntime({ root: path.join(root, "dist"), port: 0 });
+    try {
+      const response = await fetch(
+        `http://${runtime.host}:${runtime.port}/__metric-atlas/api/manifest`,
+      );
+      expect(response.ok).toBe(true);
+      const runtimeManifest: unknown = await response.json();
+      expect(() => EventManifest.parse(runtimeManifest)).not.toThrow();
+    } finally {
+      await runtime.close();
+    }
   });
 });
