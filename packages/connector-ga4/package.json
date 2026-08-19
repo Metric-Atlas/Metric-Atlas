@@ -21,6 +21,7 @@
   "dependencies": {
     "@google-analytics/admin": "^8.0.0",
     "@google-analytics/data": "^5.0.0",
-    "@metric-atlas/connector-sdk": "workspace:*"
+    "@metric-atlas/connector-sdk": "workspace:*",
+    "@metric-atlas/contracts": "workspace:*"
   }
 }

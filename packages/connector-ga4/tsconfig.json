@@ -7,5 +7,5 @@
     "tsBuildInfoFile": ".tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../connector-sdk" }]
+  "references": [{ "path": "../connector-sdk" }, { "path": "../contracts" }]
 }
