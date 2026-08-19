@@ -5,7 +5,7 @@ import type {
   ResultStatus,
 } from "@metric-atlas/contracts";
 import { classifyHealthItemBucket } from "@metric-atlas/contracts";
-import type { NormalizedAnalyticsResult } from "@metric-atlas/connector-sdk";
+import type { Ga4ObservedEventsResult, NormalizedAnalyticsResult } from "@metric-atlas/connector-sdk";
 import { resolveGa4ManagedState } from "./managed-event-registry.js";
 import { resolveParameterState, type CustomDimensionLookup } from "./reserved-parameter-registry.js";
 
@@ -79,4 +79,40 @@ export function buildHealthItemForDetectedEvent(input: {
     },
     reviewReason,
   };
+}
+
+/**
+ * ADR-007: "GA4 only" 판정 — GA4가 관측한 이벤트 중 Manifest(GA4-scope DetectedEvent)에
+ * 없는 이름들을 codeState="not_detected" HealthItem으로 만든다.
+ *
+ * eventKey는 Manifest가 없어 B의 채번 규칙을 쓸 수 없으므로, 기존 fixture 전체에서
+ * 일관되게 관찰되는 `${provider}:${eventName}` 관례를 그대로 따른다 (예: "ga4:page_view").
+ * parameterRegistrationStates는 코드가 없어 판정할 파라미터 자체가 없으므로 항상 빈 배열이다.
+ * listObservedEventNames()는 event별 eventCount를 반환하지 않아(ADR-007 승인 스키마) value는
+ * 채우지 않는다 — 필요해지면 이름별로 query()를 추가 호출하는 후속 개선으로 남긴다.
+ */
+export function buildHealthItemsForGa4OnlyEvents(input: {
+  /** analyticsProvider="ga4"인 Manifest DetectedEvent들의 eventName 집합 (DEC-033 scope). */
+  manifestEventNames: ReadonlySet<string>;
+  observedEvents: Ga4ObservedEventsResult;
+}): HealthItem[] {
+  const { manifestEventNames, observedEvents } = input;
+  if (observedEvents.resultStatus !== "ok") return [];
+
+  return observedEvents.eventNames
+    .filter((eventName) => !manifestEventNames.has(eventName))
+    .map((eventName) => ({
+      eventKey: `ga4:${eventName}`,
+      eventName,
+      codeState: "not_detected",
+      ga4ObservationState: "observed",
+      ga4ManagedState: resolveGa4ManagedState(eventName),
+      parameterRegistrationStates: [],
+      latestMeasurement: {
+        resultStatus: observedEvents.resultStatus,
+        qualityFlags: observedEvents.qualityFlags,
+      },
+      // ga4Only/ga4Managed 버킷은 REVIEW_KO에 코드가 없어 항상 null (computeReviewReason과 동일 관례).
+      reviewReason: null,
+    }));
 }

@@ -30,8 +30,10 @@ function fakeConnector(queryImpl: AnalyticsConnector["query"]): { connector: Ana
       supportedDimensions: [],
       comparisonSupport: false,
       adminMetadataSupport: false,
+      eventListingSupport: false,
     }),
     query: queryImpl,
+    listObservedEventNames: async () => ({ resultStatus: "unsupported", eventNames: [], qualityFlags: [] }),
   };
   return { connector };
 }
@@ -171,8 +173,10 @@ describe("withCache", () => {
         supportedDimensions: [],
         comparisonSupport: false,
         adminMetadataSupport: false,
+        eventListingSupport: false,
       }),
       query: async () => okResult(1),
+      listObservedEventNames: async () => ({ resultStatus: "unsupported", eventNames: [], qualityFlags: [] }),
     };
     const cached = withCache(connector, { ttlSeconds: 300 });
 

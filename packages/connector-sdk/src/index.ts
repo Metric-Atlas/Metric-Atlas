@@ -10,6 +10,7 @@ export type {
   ConnectorContext,
   DataQualityFlag,
   DateRange,
+  Ga4ObservedEventsResult,
   MetricType,
   NormalizedAnalyticsResult,
   ProviderAgnosticQuery,
@@ -20,6 +21,7 @@ export {
   ConnectionResult as ConnectionResultSchema,
   ConnectorCapabilities as ConnectorCapabilitiesSchema,
   ConnectorContext as ConnectorContextSchema,
+  Ga4ObservedEventsResult as Ga4ObservedEventsResultSchema,
   NormalizedAnalyticsResult as NormalizedAnalyticsResultSchema,
   ProviderAgnosticQuery as ProviderAgnosticQuerySchema,
 } from "@metric-atlas/contracts";

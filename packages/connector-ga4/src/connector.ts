@@ -5,6 +5,7 @@ import type {
   ConnectorContext,
   DataQualityFlag,
   DateRange,
+  Ga4ObservedEventsResult,
   NormalizedAnalyticsResult,
   ProviderAgnosticQuery,
 } from "@metric-atlas/connector-sdk";
@@ -13,6 +14,11 @@ import { mapQualityFlags, type Ga4ResponseMetadata } from "./quality-flags.js";
 export interface Ga4RunReportRequest {
   propertyId: string;
   eventName: string;
+  dateRanges: Array<{ startDate: string; endDate: string }>;
+}
+
+export interface Ga4ListEventNamesRequest {
+  propertyId: string;
   dateRanges: Array<{ startDate: string; endDate: string }>;
 }
 
@@ -28,6 +34,8 @@ export interface Ga4RunReportResponse {
 /** 실제 GA4 클라이언트를 감싸는 최소 인터페이스 — 테스트에서 fake 주입 */
 export interface Ga4ApiClient {
   runReport(request: Ga4RunReportRequest): Promise<Ga4RunReportResponse>;
+  /** ADR-007: eventName 필터 없이 eventName dimension으로 breakdown 조회 (GA4-only 판정용). */
+  listEventNames(request: Ga4ListEventNamesRequest): Promise<Ga4RunReportResponse>;
   getPropertyTimezone(propertyId: string): Promise<string | undefined>;
 }
 
@@ -149,7 +157,46 @@ export class Ga4Connector implements AnalyticsConnector {
       supportedDimensions: [],
       comparisonSupport: true,
       adminMetadataSupport: true,
+      eventListingSupport: true,
     };
+  }
+
+  async listObservedEventNames(
+    context: ConnectorContext,
+    dateRange: DateRange,
+  ): Promise<Ga4ObservedEventsResult> {
+    const range = asAbsolute(dateRange);
+    if (!range) return { resultStatus: "unsupported", eventNames: [], qualityFlags: [] };
+
+    try {
+      const response = await this.client.listEventNames({
+        propertyId: context.propertyId,
+        dateRanges: [range],
+      });
+
+      const flags = mapQualityFlags({
+        metadata: response.metadata,
+        endDate: range.endDate,
+        now: this.now(),
+        recentWindowHours: this.options.recentWindowHours,
+      });
+
+      if (response.rowCount === 0) {
+        return { resultStatus: "no_rows", eventNames: [], qualityFlags: flags };
+      }
+
+      const eventNames = response.rows
+        .map((row) => row.dimensionValues?.[0]?.value)
+        .filter((name): name is string => typeof name === "string" && name.length > 0);
+
+      return { resultStatus: "ok", eventNames, qualityFlags: flags };
+    } catch (error) {
+      return {
+        resultStatus: toErrorCode(error) === "unauthorized" ? "unauthorized" : "error",
+        eventNames: [],
+        qualityFlags: [],
+      };
+    }
   }
 
   private async resolveTimezone(propertyId: string): Promise<string> {

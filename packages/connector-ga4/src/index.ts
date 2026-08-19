@@ -2,6 +2,7 @@ export { Ga4Connector } from "./connector.js";
 export type {
   Ga4ApiClient,
   Ga4ConnectorOptions,
+  Ga4ListEventNamesRequest,
   Ga4RunReportRequest,
   Ga4RunReportResponse,
 } from "./connector.js";
@@ -23,6 +24,7 @@ export {
 } from "./managed-event-registry.js";
 export {
   buildHealthItemForDetectedEvent,
+  buildHealthItemsForGa4OnlyEvents,
   computeReviewReason,
   resolveGa4ObservationState,
 } from "./health-engine.js";

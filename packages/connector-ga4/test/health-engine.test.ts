@@ -4,8 +4,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import type { DetectedEvent, EventManifest } from "@metric-atlas/contracts";
 import type { NormalizedAnalyticsResult } from "@metric-atlas/connector-sdk";
+import type { Ga4ObservedEventsResult } from "@metric-atlas/connector-sdk";
 import {
   buildHealthItemForDetectedEvent,
+  buildHealthItemsForGa4OnlyEvents,
   computeReviewReason,
   resolveGa4ObservationState,
 } from "../src/health-engine.js";
@@ -141,5 +143,53 @@ describe("computeReviewReason (ADR-006 우선순위)", () => {
   test("ga4Managed도 flag와 무관하게 reviewReason은 null (정상 분류, docs/06 §2)", () => {
     const item = detected({ ga4ManagedState: "managed" });
     expect(computeReviewReason(item, ["subject_to_thresholding"])).toBeNull();
+  });
+});
+
+describe("buildHealthItemsForGa4OnlyEvents (ADR-007)", () => {
+  const GA4_MANIFEST_EVENT_NAMES = new Set(["purchase_click", "custom_card_click", "signup_complete"]);
+
+  test("page_view: fixtures/mock-manifest.json에 없는 이벤트 → not_detected + managed", () => {
+    const observed: Ga4ObservedEventsResult = {
+      resultStatus: "ok",
+      eventNames: ["page_view", "purchase_click"],
+      qualityFlags: [],
+    };
+    const items = buildHealthItemsForGa4OnlyEvents({
+      manifestEventNames: GA4_MANIFEST_EVENT_NAMES,
+      observedEvents: observed,
+    });
+
+    // purchase_click은 Manifest에 있으니 제외되고 page_view만 GA4-only로 남는다 (fixtures/mock-ga4-health.json 재현).
+    expect(items).toEqual([
+      {
+        eventKey: "ga4:page_view",
+        eventName: "page_view",
+        codeState: "not_detected",
+        ga4ObservationState: "observed",
+        ga4ManagedState: "managed",
+        parameterRegistrationStates: [],
+        latestMeasurement: { resultStatus: "ok", qualityFlags: [] },
+        reviewReason: null,
+      },
+    ]);
+  });
+
+  test("resultStatus가 ok가 아니면 빈 배열 (no_rows/unauthorized/error/unsupported)", () => {
+    for (const resultStatus of ["no_rows", "unauthorized", "error", "unsupported"] as const) {
+      const items = buildHealthItemsForGa4OnlyEvents({
+        manifestEventNames: GA4_MANIFEST_EVENT_NAMES,
+        observedEvents: { resultStatus, eventNames: ["page_view"], qualityFlags: [] },
+      });
+      expect(items).toEqual([]);
+    }
+  });
+
+  test("Manifest 파라미터가 없어 parameterRegistrationStates는 항상 빈 배열", () => {
+    const items = buildHealthItemsForGa4OnlyEvents({
+      manifestEventNames: new Set(),
+      observedEvents: { resultStatus: "ok", eventNames: ["scroll"], qualityFlags: [] },
+    });
+    expect(items[0]?.parameterRegistrationStates).toEqual([]);
   });
 });
