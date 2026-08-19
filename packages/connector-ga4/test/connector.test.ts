@@ -8,7 +8,7 @@ const OLD_RANGE = { startDate: "2026-06-01", endDate: "2026-06-30" } as const;
 const PREV_RANGE = { startDate: "2026-05-01", endDate: "2026-05-31" } as const;
 
 function fakeClient(overrides: Partial<Ga4ApiClient> & { responses?: Ga4RunReportResponse[] } = {}) {
-  const calls = { runReport: 0, getPropertyTimezone: 0, listEventNames: 0 };
+  const calls = { runReport: 0, getPropertyTimezone: 0, listEventNames: 0, listCustomDimensions: 0 };
   const responses = overrides.responses ?? [];
   const client: Ga4ApiClient = {
     async runReport(request) {
@@ -20,6 +20,11 @@ function fakeClient(overrides: Partial<Ga4ApiClient> & { responses?: Ga4RunRepor
       calls.listEventNames++;
       void request;
       return responses.shift() ?? { rowCount: 0, rows: [], metadata: {} };
+    },
+    async listCustomDimensions(propertyId) {
+      calls.listCustomDimensions++;
+      void propertyId;
+      return [];
     },
     async getPropertyTimezone(propertyId) {
       calls.getPropertyTimezone++;
@@ -268,5 +273,49 @@ describe("Ga4Connector.listObservedEventNames (ADR-007)", () => {
     });
     const result = await connector(client).listObservedEventNames(CONTEXT, OLD_RANGE);
     expect(result.qualityFlags).toContain("subject_to_thresholding");
+  });
+});
+
+describe("Ga4Connector.getCustomDimensionLookup (Spike §5, docs/06 §6)", () => {
+  test("성공하면 status=ok + parameterName 집합", async () => {
+    const { client } = fakeClient({
+      async listCustomDimensions() {
+        return [{ parameterName: "campaign_slot", scope: "EVENT" }];
+      },
+    });
+    const result = await connector(client).getCustomDimensionLookup(CONTEXT);
+    expect(result.status).toBe("ok");
+    expect(result.registeredParameterNames?.has("campaign_slot")).toBe(true);
+  });
+
+  test("등록 0건이어도 status=ok (API 실패와 구분)", async () => {
+    const { client } = fakeClient({ async listCustomDimensions() { return []; } });
+    const result = await connector(client).getCustomDimensionLookup(CONTEXT);
+    expect(result.status).toBe("ok");
+    expect(result.registeredParameterNames?.size).toBe(0);
+  });
+
+  test("Admin API 호출이 실패하면 status=unknown", async () => {
+    const { client } = fakeClient({
+      async listCustomDimensions() {
+        throw new Error("network boom");
+      },
+    });
+    const result = await connector(client).getCustomDimensionLookup(CONTEXT);
+    expect(result.status).toBe("unknown");
+  });
+
+  test("같은 propertyId는 두 번째 호출부터 캐시를 쓴다 (timezone과 동일 패턴)", async () => {
+    let calls = 0;
+    const { client } = fakeClient({
+      async listCustomDimensions() {
+        calls++;
+        return [{ parameterName: "campaign_slot", scope: "EVENT" }];
+      },
+    });
+    const c = connector(client);
+    await c.getCustomDimensionLookup(CONTEXT);
+    await c.getCustomDimensionLookup(CONTEXT);
+    expect(calls).toBe(1);
   });
 });
