@@ -53,6 +53,8 @@ Dashboard 코드는 `fetch("/__metric-atlas/api/...")`처럼 같은 origin으로
 METRIC_ATLAS_RUNTIME_ORIGIN=http://127.0.0.1:8790 pnpm --filter @metric-atlas/demo-react-vite dev
 ```
 
+`METRIC_ATLAS_RUNTIME_ORIGIN`을 명시하면 `/__metric-atlas/api/manifest`도 Runtime으로 proxy됩니다 (미지정 시에는 dev 서버 자신의 showcase manifest를 서빙). 외부 Runtime 모드에서 showcase overlay용 자체 manifest는 `/__metric-atlas/dev/manifest`로 제공됩니다.
+
 ## 데이터
 
 | 파일 | 용도 |
