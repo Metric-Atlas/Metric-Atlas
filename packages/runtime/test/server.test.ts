@@ -27,7 +27,7 @@ describe("Metric Atlas Local Node Runtime", () => {
       const page = await fetch(`http://${runtime.host}:${runtime.port}/`);
       expect(await page.text()).toContain("Metric Atlas");
 
-      const health = await fetchJson(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/health`);
+      const health = await fetchJson(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/runtime-health`);
       expect(health.credentials.llmApiKey).toBe(true);
       expect(JSON.stringify(health)).not.toContain("sk-secret");
     } finally {
@@ -61,18 +61,24 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
-  it("serves a generated manifest from the conventional runtime location", async () => {
+  it("serves generated manifest and health artifacts from conventional runtime locations", async () => {
     const root = await temporaryRoot();
     await mkdir(path.join(root, ".metric-atlas"));
     await writeFile(
       path.join(root, ".metric-atlas", "manifest.json"),
       JSON.stringify({ version: "0.1.0", events: [] }),
     );
+    await writeFile(
+      path.join(root, ".metric-atlas", "health.json"),
+      JSON.stringify({ generatedAt: "2026-08-19T00:00:00.000Z", provider: "ga4", items: [] }),
+    );
 
     const runtime = await serveRuntime({ root, port: 0 });
     try {
       const manifest = await fetchJson(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/manifest`);
+      const health = await fetchJson(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/health`);
       expect(manifest.version).toBe("0.1.0");
+      expect(health.provider).toBe("ga4");
     } finally {
       await runtime.close();
     }
