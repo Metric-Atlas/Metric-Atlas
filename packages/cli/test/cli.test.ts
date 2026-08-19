@@ -136,6 +136,8 @@ describe("metric-atlas CLI", () => {
       baseRef,
       "--head-ref",
       headRef,
+      "--include",
+      "src/**/*.{ts,tsx}",
       "--output",
       reportFile,
       "--manifest-dir",

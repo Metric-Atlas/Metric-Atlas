@@ -36,10 +36,10 @@ export async function runCli(argv: string[]): Promise<number> {
 async function runScan(values: Map<string, string[]>): Promise<number> {
   const root = first(values, "root") ?? process.cwd();
   const options: ScanProjectOptions = { root };
-  const include = list(values, "include");
-  const exclude = list(values, "exclude");
+  const include = all(values, "include");
+  const exclude = all(values, "exclude");
   const buildId = first(values, "build-id");
-  const detectors = parseDetectors(list(values, "detectors"));
+  const detectors = parseDetectors(commaList(values, "detectors"));
   if (include.length) options.include = include;
   if (exclude.length) options.exclude = exclude;
   if (buildId) options.buildId = buildId;
@@ -86,9 +86,9 @@ async function runReport(values: Map<string, string[]>): Promise<number> {
   const root = path.resolve(first(values, "root") ?? process.cwd());
   const baseRef = required(values, "base-ref");
   const headRef = required(values, "head-ref");
-  const detectors = parseDetectors(list(values, "detectors"));
-  const include = list(values, "include");
-  const exclude = list(values, "exclude");
+  const detectors = parseDetectors(commaList(values, "detectors"));
+  const include = all(values, "include");
+  const exclude = all(values, "exclude");
   const sharedOptions = {
     root,
     ...(detectors.length ? { detectors } : {}),
@@ -186,10 +186,14 @@ function parseArguments(argv: string[]): ParsedArguments {
   return { command: commandValue, positionals, values };
 }
 
-function list(values: Map<string, string[]>, key: string): string[] {
+function commaList(values: Map<string, string[]>, key: string): string[] {
   return (values.get(key) ?? []).flatMap((value) =>
     value.split(",").map((item) => item.trim()).filter(Boolean),
   );
+}
+
+function all(values: Map<string, string[]>, key: string): string[] {
+  return values.get(key) ?? [];
 }
 
 function parseDetectors(values: string[]): DetectorAdapterName[] {

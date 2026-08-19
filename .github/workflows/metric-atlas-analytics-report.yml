@@ -31,6 +31,8 @@ jobs:
           base-ref: ${{ github.event.pull_request.base.sha }}
           head-ref: ${{ github.event.pull_request.head.sha }}
           detectors: ga4,gtm
+          include: |
+            apps/**/src/**/*.{js,jsx,ts,tsx}
 
       - name: Upload manifests and report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

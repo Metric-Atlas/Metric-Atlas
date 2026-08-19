@@ -56,12 +56,13 @@
   - Demo build/security benchmark: pass
 - Demo production build: pass, `.metric-atlas/manifest.json`에 2 events 생성
 - Local Node Runtime smoke: built Demo와 Manifest endpoint 응답 확인
+- 실제 `origin/main` → `HEAD` Git-ref report smoke: Demo GA4/GTM 2 events added, warning 0
 - GitHub Action/Workflow YAML parse: pass
 
 ## 성능 영향
 
-- Demo 5회 median build: baseline 60.61ms, Metric Atlas 75.70ms, absolute overhead 15.09ms
-- Demo scan: 14 files, 19.94ms, 2 events
+- Demo 5회 median build: baseline 60.73ms, Metric Atlas 75.09ms, absolute overhead 14.36ms
+- Demo scan: 14 files, 20.41ms, 2 events
 - Browser JS delta: +6,629 bytes raw, +2,408 bytes gzip
 - 10초 미만 build의 absolute overhead 2초 이하 기준 통과
 

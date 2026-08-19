@@ -11,6 +11,9 @@ inputs:
   detectors:
     description: Comma-separated detector adapters. Non-MVP adapters are opt-in.
     default: ga4,gtm
+  include:
+    description: Optional newline-separated include globs. Empty uses the Detector src default.
+    default: ""
   fail-on-parse-error:
     description: Return a failing exit code when either tree contains a parse error.
     default: "false"
@@ -49,6 +52,7 @@ runs:
         BASE_REF: ${{ inputs.base-ref }}
         HEAD_REF: ${{ inputs.head-ref }}
         DETECTORS: ${{ inputs.detectors }}
+        INCLUDE: ${{ inputs.include }}
         FAIL_ON_PARSE_ERROR: ${{ inputs.fail-on-parse-error }}
       run: |
         set -euo pipefail
@@ -65,6 +69,11 @@ runs:
         if [[ -n "${DETECTORS}" ]]; then
           args+=(--detectors "${DETECTORS}")
         fi
+        while IFS= read -r pattern; do
+          if [[ -n "${pattern}" ]]; then
+            args+=(--include "${pattern}")
+          fi
+        done <<< "${INCLUDE}"
         if [[ "${FAIL_ON_PARSE_ERROR}" == "true" ]]; then
           args+=(--fail-on-parse-error)
         fi
