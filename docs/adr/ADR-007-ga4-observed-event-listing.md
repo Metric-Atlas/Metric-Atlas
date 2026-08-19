@@ -2,8 +2,9 @@
 
 - ID: ADR-007
 - Date: 2026-08-19
-- Status: Proposed
+- Status: Accepted
 - Author: Member C (재욱)
+- Accepted by: Member A (가현), 2026-08-19 — 선택지 A 채택. 구현(PR #19, #21, #22/#23)까지 검증 완료
 
 ## Problem
 
@@ -89,4 +90,4 @@ Zod 계약(`ConnectorCapabilities`, 신규 `Ga4ObservedEventsResult`)에는 brea
 
 ## Decision
 
-Proposed. A 리뷰 대기. 선택지 A/B 중 방향 결정과 `AnalyticsConnector` 인터페이스 확장 승인을 요청한다.
+Accepted. 선택지 A(전용 `listObservedEventNames()` 메서드)로 확정. `ProviderAgnosticQuery`/`NormalizedAnalyticsResult`는 변경하지 않는다.

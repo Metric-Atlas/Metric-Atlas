@@ -2,8 +2,9 @@
 
 - ID: ADR-006
 - Date: 2026-08-19
-- Status: Proposed
+- Status: Accepted
 - Author: Member C (재욱)
+- Accepted by: Member A (가현), 2026-08-19 — reviewed and verified in PR #15 (fixture-parity tests for purchase_click/signup_complete confirmed, cross-checked against apps/demo-react-vite/src/labels.ts)
 
 ## Problem
 
@@ -89,4 +90,4 @@ Breaking 없음. `reviewReason`은 기존에도 optional/nullable string이었�
 
 ## Decision
 
-Proposed. A 리뷰 후 Accepted 전환 요청.
+Accepted.

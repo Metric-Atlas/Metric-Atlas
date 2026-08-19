@@ -230,3 +230,23 @@ Status:
 - Date: 2026-08-19
 - Status: Accepted
 - Decision: `docs/04`상 Runtime은 A 통합 영역이지만 D가 최초 구현을 담당했으므로 CODEOWNERS에 `packages/runtime`을 A+D 공동 소유로 등록한다.
+
+## DEC-048 — Reserved Parameter & GA4 Managed Event Registry accepted
+- Date: 2026-08-19
+- Status: Accepted
+- Decision: GA4 Spike(C-SPIKE-001) §5 실측(`getMetadata` 매칭으로 `builtin` 판정 불가)에 근거해 `connector-ga4` 내부에 버전관리되는 Reserved Parameter Registry와 GA4 Managed Event Registry를 둔다. `packages/contracts`의 `ParameterState`/`Ga4ManagedState` enum은 변경 없음. ADR-005.
+
+## DEC-049 — GA4 Health defaults and reviewReason codes finalized
+- Date: 2026-08-19
+- Status: Accepted
+- Decision: Health 관측 기간/Cache TTL/outbound concurrency 기본값을 Spike 실측 근거로 유지한다. `subjectToThresholding`/`dataLossFromOtherRow` 필드 부재는 `false`로 해석한다. `reviewReason`은 기존 Dashboard(`apps/demo-react-vite/src/labels.ts`의 `REVIEW_KO`)가 이미 소비하는 `parameter_registration_gap`/`code_only_recent_data` 두 코드만 사용하고 그 외는 `null`로 둔다 (quality flag는 `reviewReason`과 무관하게 `qualityFlags` 배열로 별도 전달). ADR-006. ADR-001/DEC-034가 보류했던 4개 항목을 이것으로 확정 종료.
+
+## DEC-050 — GA4 observed-event listing via dedicated connector method
+- Date: 2026-08-19
+- Status: Accepted
+- Decision: "GA4 only" Health 판정을 위한 이벤트 이름 목록 조회는 `AnalyticsConnector.listObservedEventNames()` 전용 메서드로 추가한다 (`Ga4ObservedEventsResult` 신규, `ConnectorCapabilities.eventListingSupport` 추가). `ProviderAgnosticQuery`/`NormalizedAnalyticsResult`를 breakdown 모드로 일반화하는 대안은 YAGNI로 보류한다. ADR-007.
+
+## DEC-051 — GA4 Analytics Health Report producer chain complete for detected + GA4-only paths
+- Date: 2026-08-19
+- Status: Accepted
+- Decision: `packages/connector-ga4`에 `buildAnalyticsHealthReport()` 조립 함수가 Manifest(GA4 scope, DEC-033) + Connector 쿼리 결과 + Custom Dimension Lookup + Managed Event Registry + `listObservedEventNames()`를 엮어 `AnalyticsHealthReport`를 생성한다. `classifyHealthItemBucket`(packages/contracts)으로 summary를 재계산하고 Manifest `DYNAMIC_EVENT_NAME` warning을 `unresolved`에 합산한다 (docs/20 §5). PR #21/#22(→#23)로 구현·검증 완료. 이 함수를 호출해 `.metric-atlas/health.json`을 실제로 생성/제공하는 Runtime 통합은 후속 작업(A+C).
