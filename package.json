@@ -19,7 +19,7 @@
     "benchmark:detection": "tsc -b && node packages/vite/bench/build-overhead.mjs",
     "benchmark:demo": "tsc -b && node packages/vite/bench/demo-build-overhead.mjs",
     "scan": "node packages/cli/dist/bin.js scan",
-    "demo": "pnpm --filter @metric-atlas/demo-react-vite dev"
+    "demo": "corepack pnpm --filter @metric-atlas/demo-react-vite dev"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
