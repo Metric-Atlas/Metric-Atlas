@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { EventManifest as EventManifestSchema } from "@metric-atlas/contracts";
 import type {
   AnalyticsProvider,
   EventManifest,
@@ -37,7 +38,7 @@ export function createManifest(
     summaries: summarize(parts),
   };
   if (options.scanStats) manifest.scanStats = options.scanStats;
-  return manifest;
+  return EventManifestSchema.parse(manifest);
 }
 
 function summarize(parts: ManifestParts): ManifestSummaries {

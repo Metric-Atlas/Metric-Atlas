@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { analyzeSource } from "../src/index.ts";
+import { analyzeSource, detectorAdaptersFor } from "../src/index.ts";
 
 const fixture = (name: string): Promise<string> =>
   readFile(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), "utf8");
@@ -98,7 +98,7 @@ describe("analyzeSource", () => {
     );
   });
 
-  it("keeps other direct emitter adapters provider-specific", () => {
+  it("keeps non-MVP adapters disabled unless explicitly selected", () => {
     const source = `
       export const Actions = () => <div>
         <button onClick={() => mixpanel.track("mix_click")}>Mix</button>
@@ -107,9 +107,21 @@ describe("analyzeSource", () => {
         <button onClick={() => amplitude.track("amplitude_click")}>Amplitude</button>
       </div>;
     `;
+    const defaultResult = analyzeSource(source, {
+      file: "src/Actions.tsx",
+      buildId: "test-build",
+    });
+    expect(defaultResult.events).toEqual([]);
+
     const result = analyzeSource(source, {
       file: "src/Actions.tsx",
       buildId: "test-build",
+      adapters: detectorAdaptersFor([
+        "mixpanel",
+        "meta",
+        "posthog",
+        "amplitude",
+      ]),
     });
     expect(result.events.map((event) => event.eventKey)).toEqual([
       "mixpanel:mix_click",

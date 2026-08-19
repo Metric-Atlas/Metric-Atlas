@@ -1,71 +1,18 @@
-export type ProviderDetectionConfidence = "provider_exact" | "provider_unknown";
+import type {
+  AnalyticsHealthReport,
+  DetectedEvent,
+  ElementBinding,
+  EventManifest,
+  HealthItem as ContractHealthItem,
+  ProviderDetectionConfidence as ContractProviderDetectionConfidence,
+} from "@metric-atlas/contracts";
 
-export interface ManifestEvent {
-  eventKey: string;
-  implementationKey: string;
-  eventName: string;
-  emitter: string;
-  analyticsProvider: string;
-  providerDetectionConfidence: ProviderDetectionConfidence;
-  parameters: string[];
-  source: { file: string; line: number; column: number };
-  overlaySupported: boolean;
-}
-
-export interface ManifestBinding {
-  atlasDomId: string;
-  eventKeys: string[];
-  implementationKeys?: string[];
-  element: { type: string; file: string; line: number; column: number };
-  bindingConfidence: string;
-}
-
-export interface Manifest {
-  version: string;
-  buildId: string;
-  generatedAt: string;
-  events: ManifestEvent[];
-  bindings: ManifestBinding[];
-  summaries?: unknown;
-  warnings?: unknown[];
-  scanStats: { filesScanned: number; durationMs: number; eventsDetected: number };
-}
-
-export interface ParameterRegistrationState {
-  parameter: string;
-  state: "builtin" | "registered_custom_dimension" | "not_registered" | "unknown";
-}
-
-export interface HealthItem {
-  eventKey: string;
-  eventName: string;
-  codeState: "detected" | "not_detected";
-  ga4ObservationState: "observed" | "not_observed";
-  ga4ManagedState: "managed" | "not_managed";
-  parameterRegistrationStates: ParameterRegistrationState[];
-  latestMeasurement: {
-    resultStatus: "ok" | "no_rows" | "unauthorized" | "unsupported" | "error";
-    value?: number;
-    qualityFlags: string[];
-  };
-  reviewReason: string | null;
-}
-
-export interface Ga4Health {
-  generatedAt: string;
-  provider: string;
-  propertyId: string;
-  reportingTimezone: string;
-  summary: {
-    healthy: number;
-    codeOnly: number;
-    ga4Only: number;
-    ga4Managed: number;
-    parameterRegistrationGap: number;
-    unresolved: number;
-  };
-  items: HealthItem[];
-}
+export type ProviderDetectionConfidence = ContractProviderDetectionConfidence;
+export type ManifestEvent = DetectedEvent;
+export type ManifestBinding = ElementBinding;
+export type Manifest = EventManifest;
+export type HealthItem = ContractHealthItem;
+export type Ga4Health = AnalyticsHealthReport;
 
 export type HealthBucket =
   | "healthy"

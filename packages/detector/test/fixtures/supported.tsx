@@ -21,7 +21,7 @@ export function SupportedPatterns() {
         }
       />
       {createPortal(
-        <a onClick={() => posthog.capture("portal_click", { slot: "footer" })}>
+        <a onClick={() => gtag("event", "portal_click", { slot: "footer" })}>
           Portal
         </a>,
         document.body,

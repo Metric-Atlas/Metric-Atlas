@@ -44,6 +44,9 @@ importers:
 
   apps/demo-react-vite:
     dependencies:
+      '@metric-atlas/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -51,6 +54,9 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@metric-atlas/vite':
+        specifier: workspace:*
+        version: link:../../packages/vite
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18
@@ -72,6 +78,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@metric-atlas/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@metric-atlas/detector':
         specifier: workspace:*
         version: link:../detector
@@ -117,6 +126,9 @@ importers:
       '@babel/types':
         specifier: ^8.0.4
         version: 8.0.4
+      '@metric-atlas/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       fast-glob:
         specifier: ^3.3.3
         version: 3.3.3
@@ -126,14 +138,17 @@ importers:
 
   packages/overlay:
     dependencies:
-      '@metric-atlas/detector':
+      '@metric-atlas/contracts':
         specifier: workspace:*
-        version: link:../detector
+        version: link:../contracts
 
   packages/runtime: {}
 
   packages/vite:
     dependencies:
+      '@metric-atlas/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@metric-atlas/detector':
         specifier: workspace:*
         version: link:../detector

@@ -15,10 +15,20 @@ export interface DetectionCandidate {
 }
 
 export interface DetectorAdapter {
-  name: string;
+  name: DetectorAdapterName;
   matchesSdkReference(path: NodePath<t.CallExpression>): boolean;
   detect(path: NodePath<t.CallExpression>): DetectionCandidate | null;
 }
+
+export type DetectorAdapterName =
+  | "ga4"
+  | "gtm"
+  | "mixpanel"
+  | "meta"
+  | "posthog"
+  | "amplitude";
+
+export const DEFAULT_DETECTOR_ADAPTERS = ["ga4", "gtm"] as const satisfies readonly DetectorAdapterName[];
 
 function identifierCall(path: NodePath<t.CallExpression>, name: string): boolean {
   return t.isIdentifier(path.node.callee, { name });
@@ -124,7 +134,7 @@ const gtmAdapter: DetectorAdapter = {
 function memberEventAdapter(
   name: string,
   method: string,
-  emitter: TrackingEmitter,
+  emitter: DetectorAdapterName,
   provider: AnalyticsProvider,
 ): DetectorAdapter {
   return {
@@ -169,11 +179,27 @@ const metaAdapter: DetectorAdapter = {
   },
 };
 
-export const defaultDetectorAdapters: readonly DetectorAdapter[] = [
-  ga4Adapter,
-  gtmAdapter,
-  memberEventAdapter("mixpanel", "track", "mixpanel", "mixpanel"),
-  metaAdapter,
-  memberEventAdapter("posthog", "capture", "posthog", "posthog"),
-  memberEventAdapter("amplitude", "track", "amplitude", "amplitude"),
-];
+export const detectorAdaptersByName: Readonly<
+  Record<DetectorAdapterName, DetectorAdapter>
+> = {
+  ga4: ga4Adapter,
+  gtm: gtmAdapter,
+  mixpanel: memberEventAdapter("mixpanel", "track", "mixpanel", "mixpanel"),
+  meta: metaAdapter,
+  posthog: memberEventAdapter("posthog", "capture", "posthog", "posthog"),
+  amplitude: memberEventAdapter("amplitude", "track", "amplitude", "amplitude"),
+};
+
+/** DEC-037: official MVP detection defaults to GA4/GTM only. */
+export const defaultDetectorAdapters: readonly DetectorAdapter[] =
+  detectorAdaptersFor(DEFAULT_DETECTOR_ADAPTERS);
+
+export function detectorAdaptersFor(
+  names: readonly DetectorAdapterName[],
+): readonly DetectorAdapter[] {
+  return [...new Set(names)].map((name) => detectorAdaptersByName[name]);
+}
+
+export function isDetectorAdapterName(value: string): value is DetectorAdapterName {
+  return Object.hasOwn(detectorAdaptersByName, value);
+}

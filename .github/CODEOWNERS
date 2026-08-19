@@ -11,6 +11,8 @@
 /packages/vite/ @member-b
 /packages/cli/ @member-b
 /playwright.config.ts @member-b
+/.github/actions/analytics-report/ @member-a @member-b
+/.github/workflows/metric-atlas-analytics-report.yml @member-a @member-b
 
 /packages/dashboard/ @member-c
 /packages/connector-sdk/ @member-c

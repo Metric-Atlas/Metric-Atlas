@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
+import { TrackingShowcase } from "./components/TrackingShowcase";
 import { OverviewView } from "./views/OverviewView";
 import { EventsView } from "./views/EventsView";
 import { QueryView } from "./views/QueryView";
@@ -46,6 +47,7 @@ export function App() {
     [dashboardData]
   );
   const { manifest, health } = dashboardData;
+  const scanStats = manifest.scanStats;
   const [view, setView] = useState<ViewId>("overview");
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [selectedKey, setSelectedKey] = useState<string | null>("ga4:purchase_click");
@@ -102,6 +104,8 @@ export function App() {
           </div>
         </header>
 
+        <TrackingShowcase />
+
         {view === "overview" && (
           <OverviewView
             rows={rows}
@@ -154,8 +158,9 @@ export function App() {
 
         <footer style={{ fontSize: 11.5, color: C.faint, lineHeight: 1.6, overflowWrap: "anywhere" }}>
           fixtures/mock-manifest.json · mock-ga4-health.json · mock-query-result.json (읽기 전용) · scan{" "}
-          {manifest.scanStats.filesScanned} files · {manifest.scanStats.durationMs}ms ·{" "}
-          {manifest.scanStats.eventsDetected} events
+          {scanStats
+            ? `scan ${scanStats.filesScanned} files · ${scanStats.durationMs}ms · ${scanStats.eventsDetected} events`
+            : "scan stats unavailable"}
         </footer>
       </main>
     </div>

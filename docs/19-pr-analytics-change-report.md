@@ -48,3 +48,18 @@ GA4 custom parameter changes:
 - secret exposure
 
 Event 추가/삭제 자체는 제품 변경일 수 있으므로 기본 Build Failure로 간주하지 않습니다.
+
+## 5. 구현 경로
+
+```bash
+metric-atlas report \
+  --root . \
+  --base-ref "$BASE_SHA" \
+  --head-ref "$HEAD_SHA" \
+  --output metric-atlas-report.md \
+  --manifest-dir .metric-atlas/pr
+```
+
+`report`는 checkout이나 사용자 source를 바꾸지 않고 Git object의 Base/Head tree를 직접 읽습니다. 기본 GA4/GTM Detector만 실행하며 다른 Provider는 `--detectors`로 opt-in합니다. `.github/workflows/metric-atlas-analytics-report.yml`은 report와 두 Manifest를 artifact/Job Summary로 보존하고 동일 marker의 PR comment를 갱신합니다.
+
+기본 정책은 report-only입니다. `--fail-on-parse-error`를 지정한 경우에만 parse warning을 실패 코드로 승격하며 scanner crash와 Contract validation 실패는 항상 실패합니다.
