@@ -23,6 +23,7 @@ export {
   resolveGa4ManagedState,
 } from "./managed-event-registry.js";
 export {
+  buildAnalyticsHealthReport,
   buildHealthItemForDetectedEvent,
   buildHealthItemsForGa4OnlyEvents,
   computeReviewReason,
