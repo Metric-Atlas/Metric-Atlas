@@ -1,7 +1,6 @@
 import { C, HEALTH_META, REVIEW_KO, SUMMARY_BUCKETS, eventKo } from "../labels";
 import { badge, card, grid, sectionTitle } from "../ui";
-import { health, manifest } from "../data";
-import type { HealthBucket, JoinedRow } from "../types";
+import type { Ga4Health, HealthBucket, JoinedRow, Manifest } from "../types";
 
 const GLOSSARY: { term: string; desc: string }[] = [
   { term: "eventKey", desc: "이벤트를 구분하는 고유 키입니다. 예: ga4:purchase_click" },
@@ -21,6 +20,8 @@ const tile = (accent?: string) => ({
 
 export function OverviewView(props: {
   rows: JoinedRow[];
+  manifest: Manifest;
+  health: Ga4Health;
   onOpenAll: () => void;
   onOpenBucket: (b: HealthBucket) => void;
   onOpenEvent: (eventKey: string) => void;
@@ -33,10 +34,10 @@ export function OverviewView(props: {
         <button onClick={props.onOpenAll} style={tile()}>
           <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.muted }}>코드에서 찾은 이벤트</span>
           <span style={{ display: "block", fontSize: 28, fontWeight: 700, marginTop: 3, letterSpacing: "-0.02em" }}>
-            {manifest.events.length}
+            {props.manifest.events.length}
           </span>
           <span style={{ display: "block", fontSize: 11.5, color: C.faint, marginTop: 2 }}>
-            Manifest events · 화면 연결 {manifest.bindings.length}건 · 클릭하면 전체 목록
+            Manifest events · 화면 연결 {props.manifest.bindings.length}건 · 클릭하면 전체 목록
           </span>
         </button>
 
@@ -48,7 +49,7 @@ export function OverviewView(props: {
               <span
                 style={{ display: "block", fontSize: 28, fontWeight: 700, marginTop: 3, letterSpacing: "-0.02em", color: meta.color }}
               >
-                {health.summary[b as keyof typeof health.summary]}
+                {props.health.summary[b as keyof typeof props.health.summary]}
               </span>
               <span style={{ display: "block", fontSize: 11.5, color: C.faint, marginTop: 2, lineHeight: 1.45 }}>
                 {meta.explain}

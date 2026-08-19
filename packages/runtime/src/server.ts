@@ -98,8 +98,13 @@ async function routeRequest(
   root: string,
 ): Promise<void> {
   const url = new URL(request.url ?? "/", "http://metric-atlas.local");
-  if (url.pathname === "/__metric-atlas/api/health" && request.method === "GET") {
+  if (url.pathname === "/__metric-atlas/api/runtime-health" && request.method === "GET") {
     sendJson(response, 200, runtimeHealth(root));
+    return;
+  }
+
+  if (url.pathname === "/__metric-atlas/api/health" && request.method === "GET") {
+    await sendHealth(response, root);
     return;
   }
 
@@ -154,25 +159,35 @@ function runtimeHealth(root: string): RuntimeHealth {
 }
 
 async function sendManifest(response: ServerResponse, root: string): Promise<void> {
-  const candidates = [
+  await sendJsonFile(response, [
     path.join(root, ".metric-atlas", "manifest.json"),
     path.join(root, "manifest.json"),
-  ];
+  ], "manifest_not_found", "Expected .metric-atlas/manifest.json or manifest.json under the served root.");
+}
+
+async function sendHealth(response: ServerResponse, root: string): Promise<void> {
+  await sendJsonFile(response, [
+    path.join(root, ".metric-atlas", "health.json"),
+    path.join(root, "health.json"),
+  ], "health_not_found", "Expected .metric-atlas/health.json or health.json under the served root.");
+}
+
+async function sendJsonFile(
+  response: ServerResponse,
+  candidates: string[],
+  code: string,
+  message: string,
+): Promise<void> {
   for (const file of candidates) {
     try {
       const contents = await readFile(file, "utf8");
       sendJson(response, 200, JSON.parse(contents));
       return;
     } catch {
-      // Try the next conventional manifest location.
+      // Try the next conventional runtime artifact location.
     }
   }
-  sendJson(response, 404, {
-    error: {
-      code: "manifest_not_found",
-      message: "Expected .metric-atlas/manifest.json or manifest.json under the served root.",
-    },
-  });
+  sendJson(response, 404, { error: { code, message } });
 }
 
 async function sendStaticAsset(
