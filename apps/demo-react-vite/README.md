@@ -37,6 +37,21 @@ repo 루트 script 예시 (선택):
 | --- | --- | --- |
 | ![Health summary](./docs/screenshots/overview.png) | ![Event explorer](./docs/screenshots/events.png) | ![Query view](./docs/screenshots/query.png) |
 
+## Runtime API 개발 연결
+
+개발 중에는 Vite dev server와 Local Node Runtime을 따로 띄울 수 있습니다.
+
+```bash
+node packages/cli/dist/bin.js serve /tmp/metric-atlas-runtime-smoke --port 8787
+pnpm --filter @metric-atlas/demo-react-vite dev
+```
+
+Dashboard 코드는 `fetch("/__metric-atlas/api/...")`처럼 같은 origin으로 요청합니다. Vite dev server는 이 경로를 기본적으로 `http://127.0.0.1:8787`로 proxy합니다. 다른 Runtime 주소를 쓰려면 다음 값을 지정합니다.
+
+```bash
+METRIC_ATLAS_RUNTIME_ORIGIN=http://127.0.0.1:8790 pnpm --filter @metric-atlas/demo-react-vite dev
+```
+
 ## 데이터
 
 | 파일 | 용도 |
