@@ -25,6 +25,7 @@ export {
 export {
   buildAnalyticsHealthReport,
   buildHealthItemForDetectedEvent,
+  type LogicalGa4Event,
   buildHealthItemsForGa4OnlyEvents,
   computeReviewReason,
   resolveGa4ObservationState,
