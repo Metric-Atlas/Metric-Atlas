@@ -1,17 +1,16 @@
 # Replace placeholders with actual GitHub usernames.
 
 /packages/contracts/ @member-a
+/packages/runtime/ @member-a @member-d
 /docs/00-project-source-of-truth.md @member-a
 /docs/08-contracts-and-schema.md @member-a
 /docs/15-decision-log.md @member-a
 
-/packages/detector-core/ @member-b
-/packages/detector-ga4/ @member-b
-/packages/detector-gtm/ @member-b
-/packages/detector-meta/ @member-b
-/packages/detector-mixpanel/ @member-b
-/packages/transform-babel/ @member-b
+/packages/detector/ @member-b
 /packages/overlay/ @member-b
+/packages/vite/ @member-b
+/packages/cli/ @member-b
+/playwright.config.ts @member-b
 
 /packages/dashboard/ @member-c
 /packages/connector-sdk/ @member-c

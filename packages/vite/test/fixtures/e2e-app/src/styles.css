@@ -1,0 +1,17 @@
+body {
+  margin: 0;
+  padding: 32px;
+  color: #172033;
+  background: #f8fafc;
+  font-family: system-ui, sans-serif;
+}
+
+main {
+  display: grid;
+  max-width: 480px;
+  gap: 12px;
+}
+
+button {
+  padding: 10px 14px;
+}

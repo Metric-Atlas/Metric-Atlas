@@ -10,7 +10,7 @@
 - 세부 Provider API 응답을 공통 계약으로 유출하지 않음
 - Feature 문서에서 별도 Schema를 중복 정의하지 않음
 
-Phase 0 공통 필드 승인 초안은 `docs/20-phase-0-common-fields.md`에 기록합니다. 해당 문서가 `Proposed` 상태인 동안에는 이 문서와 기존 Fixture가 현재 기준이며, A 승인 후 Zod Schema와 Fixture를 함께 갱신합니다.
+Phase 0 공통 필드는 `docs/20-phase-0-common-fields.md`에서 ADR-001로 Accepted되었습니다 (2026-08-18). 실제 Machine SoT는 `packages/contracts`의 Zod Schema입니다.
 
 ## 2. Core Types
 
@@ -76,7 +76,7 @@ interface EventManifest {
 - `element`
 - `bindingConfidence`
 
-`implementationKey`, `ElementBinding.implementationKeys`, 동적 이벤트의 Warning-only 표현은 `docs/20-phase-0-common-fields.md`에서 제안한 승인 전 항목이며 현재 Contract에 확정된 필드가 아닙니다.
+`implementationKey`, `ElementBinding.implementationKeys`는 Contract v0 필수 필드입니다 (ADR-001). 동적 이벤트는 `events[]`에 넣지 않고 `DYNAMIC_EVENT_NAME` Warning으로만 표현합니다.
 
 ## 4. ID Contracts
 
@@ -140,12 +140,15 @@ interface NormalizedAnalyticsResult {
   value?: number;
   previousValue?: number;
   dateRange: DateRange;
+  comparisonDateRange?: DateRange;
   reportingTimezone: string;
   fetchedAt: string;
   qualityFlags: DataQualityFlag[];
   providerMetadata?: Record<string, unknown>;
 }
 ```
+
+`dateRange`는 Property Reporting Time Zone 기준 절대 날짜입니다. `metricType="comparison"`이면 `comparisonDateRange`가 필수입니다 (ADR-001).
 
 ### DataQualityFlag
 
@@ -176,6 +179,8 @@ Health Item:
 - qualityFlags
 - reviewReason
 
+`HealthSummary` 버킷 상호배타 우선순위와 `unresolved` 산정 근거는 `docs/20-phase-0-common-fields.md` §5, ADR-001을 따릅니다.
+
 ## 8. QueryPlan — D produces, C Connector consumes
 
 초기 analysisType:
@@ -196,16 +201,20 @@ QueryPlan은 Zod 검증과 Connector Capability 검증을 모두 통과해야 �
 
 ## 9. Runtime API Envelope — A approves/integrates
 
-Provider-specific URL 하드코딩 금지.
+Provider-specific URL 하드코딩 금지. Local Node Runtime 기본 구조는 ADR-004로 Accepted.
 
 ```text
-GET  /__metric-atlas/api/manifest
-GET  /__metric-atlas/api/health
-GET  /__metric-atlas/api/providers
-POST /__metric-atlas/api/connectors/:provider/test
-POST /__metric-atlas/api/connectors/:provider/query
-POST /__metric-atlas/api/query
+GET  /__metric-atlas/api/runtime-health          [구현됨 — packages/runtime]
+GET  /__metric-atlas/api/manifest                [구현됨]
+GET  /__metric-atlas/api/health                  [구현됨 — Analytics Health artifact]
+POST /__metric-atlas/api/llm/generate            [구현됨 — 501 fail-closed, adapter 미구현]
+GET  /__metric-atlas/api/providers                [미구현]
+POST /__metric-atlas/api/connectors/:provider/test [미구현]
+POST /__metric-atlas/api/connectors/:provider/query [미구현]
+POST /__metric-atlas/api/query                    [미구현]
 ```
+
+`runtime-health`는 Runtime 프로세스 자체 상태(credential 존재 여부만 boolean으로)이며, `health`는 Analytics Health Report artifact를 서빙한다 — 두 endpoint는 서로 다른 개념이다 (ADR-004).
 
 ## 10. 계약 변경 영향
 
