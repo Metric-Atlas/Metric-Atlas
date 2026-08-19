@@ -1,6 +1,7 @@
 # Replace placeholders with actual GitHub usernames.
 
 /packages/contracts/ @member-a
+/packages/runtime/ @member-a @member-d
 /docs/00-project-source-of-truth.md @member-a
 /docs/08-contracts-and-schema.md @member-a
 /docs/15-decision-log.md @member-a

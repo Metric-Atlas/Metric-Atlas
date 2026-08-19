@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { health, joinRows, manifest } from "../data";
+import { health, joinRows, loadDashboardData, manifest } from "../data";
 
 describe("health join by eventKey", () => {
   const rows = joinRows();
@@ -34,3 +34,43 @@ describe("health join by eventKey", () => {
     expect(rows.map((r) => r.eventKey)).toContain("ga4:purchase_click");
   });
 });
+
+
+describe("dashboard runtime data fallback", () => {
+  it("uses runtime manifest and fixture health when runtime health is not compatible", async () => {
+    const runtimeManifest = { ...manifest, buildId: "runtime-build" };
+    const fetcher = async (url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path.endsWith("/manifest")) return jsonResponse(runtimeManifest);
+      if (path.endsWith("/health")) return jsonResponse({ ok: true, mode: "local-node-runtime" });
+      throw new Error(`unexpected url ${path}`);
+    };
+
+    const data = await loadDashboardData(fetcher as typeof fetch);
+
+    expect(data.manifest.buildId).toBe("runtime-build");
+    expect(data.manifestSource).toBe("runtime");
+    expect(data.healthSource).toBe("fixture");
+    expect(data.runtimeAvailable).toBe(true);
+    expect(data.fallbackReasons).toContain("GA4 health runtime response shape mismatch");
+  });
+
+  it("falls back to fixture data when runtime is unavailable", async () => {
+    const fetcher = async () => {
+      throw new Error("connect ECONNREFUSED");
+    };
+
+    const data = await loadDashboardData(fetcher as typeof fetch);
+
+    expect(data.manifestSource).toBe("fixture");
+    expect(data.healthSource).toBe("fixture");
+    expect(data.runtimeAvailable).toBe(false);
+  });
+});
+
+function jsonResponse(value: unknown): Response {
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: { "content-type": "application/json" }
+  });
+}

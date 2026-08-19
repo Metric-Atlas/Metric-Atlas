@@ -49,7 +49,10 @@ METRIC_ATLAS_ENABLED=true pnpm build
 
 ```bash
 metric-atlas serve ./dist
+metric-atlas serve ./dist --env ./.env.metric-atlas --port 8787
 ```
+
+`.env.metric-atlas`는 Node Runtime 실행자가 관리하는 파일입니다. 브라우저 bundle이나 `VITE_*` 환경변수로 GA4/LLM credential을 전달하지 않습니다. 예시는 `.env.metric-atlas.example`을 사용합니다.
 
 ## 5. Runtime API
 

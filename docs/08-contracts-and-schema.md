@@ -201,16 +201,20 @@ QueryPlan은 Zod 검증과 Connector Capability 검증을 모두 통과해야 �
 
 ## 9. Runtime API Envelope — A approves/integrates
 
-Provider-specific URL 하드코딩 금지.
+Provider-specific URL 하드코딩 금지. Local Node Runtime 기본 구조는 ADR-004로 Accepted.
 
 ```text
-GET  /__metric-atlas/api/manifest
-GET  /__metric-atlas/api/health
-GET  /__metric-atlas/api/providers
-POST /__metric-atlas/api/connectors/:provider/test
-POST /__metric-atlas/api/connectors/:provider/query
-POST /__metric-atlas/api/query
+GET  /__metric-atlas/api/runtime-health          [구현됨 — packages/runtime]
+GET  /__metric-atlas/api/manifest                [구현됨]
+GET  /__metric-atlas/api/health                  [구현됨 — Analytics Health artifact]
+POST /__metric-atlas/api/llm/generate            [구현됨 — 501 fail-closed, adapter 미구현]
+GET  /__metric-atlas/api/providers                [미구현]
+POST /__metric-atlas/api/connectors/:provider/test [미구현]
+POST /__metric-atlas/api/connectors/:provider/query [미구현]
+POST /__metric-atlas/api/query                    [미구현]
 ```
+
+`runtime-health`는 Runtime 프로세스 자체 상태(credential 존재 여부만 boolean으로)이며, `health`는 Analytics Health Report artifact를 서빙한다 — 두 endpoint는 서로 다른 개념이다 (ADR-004).
 
 ## 10. 계약 변경 영향
 

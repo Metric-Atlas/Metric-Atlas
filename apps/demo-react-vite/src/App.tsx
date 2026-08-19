@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { OverviewView } from "./views/OverviewView";
 import { EventsView } from "./views/EventsView";
 import { QueryView } from "./views/QueryView";
-import { health, joinRows, manifest } from "./data";
+import { fixtureDashboardData, joinRows, loadDashboardData, type DashboardData } from "./data";
 import { C } from "./labels";
 import { EMPTY_FILTERS, filterRows, findCandidates, type FilterState } from "./search";
 import type { AnalysisType, HealthBucket } from "./types";
@@ -13,7 +13,7 @@ export type ViewId = "overview" | "events" | "query";
 const VIEW_META: Record<ViewId, { title: string; sub: string }> = {
   overview: {
     title: "Analytics Health 요약",
-    sub: "코드에서 찾은 이벤트와 GA4 관측 결과를 비교한 결과입니다. 모든 수치는 fixture의 Mock 데이터입니다."
+    sub: "코드에서 찾은 이벤트와 GA4 관측 결과를 비교한 결과입니다."
   },
   events: {
     title: "이벤트 탐색",
@@ -26,7 +26,26 @@ const VIEW_META: Record<ViewId, { title: string; sub: string }> = {
 };
 
 export function App() {
-  const rows = useMemo(() => joinRows(), []);
+  const [dashboardData, setDashboardData] = useState<DashboardData>(fixtureDashboardData);
+  const [dataStatus, setDataStatus] = useState<"loading" | "ready">("loading");
+
+  useEffect(() => {
+    let active = true;
+    loadDashboardData().then((data) => {
+      if (!active) return;
+      setDashboardData(data);
+      setDataStatus("ready");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const rows = useMemo(
+    () => joinRows(dashboardData.manifest, dashboardData.health),
+    [dashboardData]
+  );
+  const { manifest, health } = dashboardData;
   const [view, setView] = useState<ViewId>("overview");
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [selectedKey, setSelectedKey] = useState<string | null>("ga4:purchase_click");
@@ -70,11 +89,24 @@ export function App() {
           <p style={{ margin: "5px 0 0", fontSize: 13, color: C.muted, lineHeight: 1.5, maxWidth: "74ch" }}>
             {VIEW_META[view].sub}
           </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+            {[
+              `manifest: ${dashboardData.manifestSource}`,
+              `health: ${dashboardData.healthSource}`,
+              dataStatus === "loading" ? "runtime 확인 중" : dashboardData.runtimeAvailable ? "runtime 응답 확인" : "fixture fallback"
+            ].map((label) => (
+              <span key={label} style={{ border: `1px solid ${C.line}`, borderRadius: 999, padding: "4px 8px", fontSize: 11.5, color: C.muted, background: C.surface }}>
+                {label}
+              </span>
+            ))}
+          </div>
         </header>
 
         {view === "overview" && (
           <OverviewView
             rows={rows}
+            manifest={manifest}
+            health={health}
             onOpenAll={() => {
               setFilters(EMPTY_FILTERS);
               setView("events");
