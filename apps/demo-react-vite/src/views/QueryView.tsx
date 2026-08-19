@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ANALYSIS_KO, C, HEALTH_META, VALUE_KO, eventKo, providerColors } from "../labels";
 import { badge, card, fieldLabel, grid, input, mono, sectionTitle, tag } from "../ui";
 import { MAX_CANDIDATES } from "../search";
@@ -13,6 +14,12 @@ const EXAMPLES = [
 
 const ANALYSES: AnalysisType[] = ["definition", "event_count", "comparison"];
 
+type LlmState =
+  | { status: "idle"; message: string }
+  | { status: "loading"; message: string }
+  | { status: "success"; message: string; model: string; provider: string }
+  | { status: "error"; message: string; code: string };
+
 export function QueryView(props: {
   question: string;
   setQuestion: (q: string) => void;
@@ -22,6 +29,7 @@ export function QueryView(props: {
   analysisType: AnalysisType;
   setAnalysisType: (a: AnalysisType) => void;
 }) {
+  const [llm, setLlm] = useState<LlmState>({ status: "idle", message: "Runtime LLM 응답이 여기에 표시됩니다." });
   const outcome = evaluateQuery(props.chosen, props.analysisType);
   const blocked = outcome.blocked;
   const isDefinition = props.analysisType === "definition";
@@ -29,6 +37,51 @@ export function QueryView(props: {
   const statusBg = blocked ? C.redBg : isDefinition ? C.grayBg : C.greenBg;
   const statusBorder = blocked ? "#eec9c9" : isDefinition ? "#dededa" : "#c8e3cf";
   const multiple = props.candidates.length > 1 && !props.chosen;
+  const canAskLlm = props.question.trim().length > 0 && props.candidates.length > 0;
+
+  const askLlm = async () => {
+    if (!canAskLlm) return;
+    setLlm({ status: "loading", message: "Local Node Runtime을 통해 LLM에 질의하는 중입니다." });
+    try {
+      const response = await fetch("/__metric-atlas/api/llm/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          question: props.question,
+          analysisType: props.analysisType,
+          candidates: props.candidates.slice(0, MAX_CANDIDATES).map((row) => ({
+            eventKey: row.eventKey,
+            eventName: row.eventName,
+            provider: row.event?.analyticsProvider ?? "unknown",
+            emitter: row.event?.emitter,
+            parameters: row.event?.parameters ?? [],
+            sourceFile: row.event?.source.file
+          }))
+        })
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        setLlm({
+          status: "error",
+          code: body?.error?.code ?? `http_${response.status}`,
+          message: body?.error?.message ?? "LLM 요청이 실패했습니다."
+        });
+        return;
+      }
+      setLlm({
+        status: "success",
+        provider: body.provider ?? "openai-compatible",
+        model: body.model ?? "unknown",
+        message: body.content || "LLM이 빈 응답을 반환했습니다."
+      });
+    } catch (error) {
+      setLlm({
+        status: "error",
+        code: "runtime_unavailable",
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  };
 
   return (
     <div style={{ ...grid(340, 16), alignItems: "start" }}>
@@ -56,7 +109,7 @@ export function QueryView(props: {
             ))}
           </div>
           <p style={{ margin: "10px 0 0", fontSize: 11.5, color: C.faint, lineHeight: 1.55 }}>
-            질문은 로컬 검색으로만 후보를 좁힙니다. 외부 LLM이나 GA4 호출은 하지 않습니다.
+            후보 추출은 브라우저 로컬 검색으로 수행하고, LLM 설명은 Local Node Runtime을 통해서만 요청합니다.
           </p>
         </section>
 
@@ -123,7 +176,7 @@ export function QueryView(props: {
             style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 11 }}
           >
             <h2 style={sectionTitle}>분석 종류</h2>
-            <span style={{ fontFamily: mono, fontSize: 10.5, color: C.faint }}>no live API call</span>
+            <span style={{ fontFamily: mono, fontSize: 10.5, color: C.faint }}>runtime LLM optional</span>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
             {ANALYSES.map((a) => {
@@ -167,6 +220,49 @@ export function QueryView(props: {
             >
               {JSON.stringify(outcome.plan, null, 2)}
             </pre>
+          </div>
+
+          <div style={{ marginTop: 13, display: "flex", flexDirection: "column", gap: 9 }}>
+            <button
+              onClick={askLlm}
+              disabled={!canAskLlm || llm.status === "loading"}
+              style={{
+                border: `1px solid ${canAskLlm ? C.accentLine : C.line}`,
+                background: canAskLlm ? C.accentBg : C.surfaceAlt,
+                color: canAskLlm ? "#16218f" : C.faint,
+                borderRadius: 9,
+                padding: "10px 12px",
+                cursor: canAskLlm ? "pointer" : "not-allowed",
+                textAlign: "left",
+                fontSize: 12.5,
+                fontWeight: 700
+              }}
+            >
+              {llm.status === "loading" ? "LLM 응답 대기 중" : "Local Runtime LLM에게 설명 요청"}
+            </button>
+            <div
+              style={{
+                border: `1px solid ${llm.status === "error" ? "#eec9c9" : C.lineSoft}`,
+                background: llm.status === "error" ? C.redBg : C.surfaceAlt,
+                borderRadius: 9,
+                padding: "11px 12px",
+                fontSize: 12.5,
+                color: llm.status === "error" ? C.red : "#3d403a",
+                lineHeight: 1.6,
+                whiteSpace: "pre-wrap",
+                overflowWrap: "anywhere"
+              }}
+            >
+              {llm.status === "success" && (
+                <div style={{ fontFamily: mono, fontSize: 10.5, color: C.faint, marginBottom: 5 }}>
+                  {llm.provider} · {llm.model}
+                </div>
+              )}
+              {llm.status === "error" && (
+                <div style={{ fontFamily: mono, fontSize: 10.5, marginBottom: 5 }}>{llm.code}</div>
+              )}
+              {llm.message}
+            </div>
           </div>
         </section>
 
