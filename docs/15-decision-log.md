@@ -190,3 +190,18 @@ Status:
 - Date: 2026-08-18
 - Status: Accepted
 - Decision: B의 Contract Input(PR #4)을 Contract v0에 통합했다. `packages/detector` 등이 `@metric-atlas/contracts`를 실제로 의존하도록 마이그레이션하는 작업은 B 소유의 후속 PR로 진행한다. ADR-002.
+
+## DEC-045 — Local Node Runtime is the default execution model
+- Date: 2026-08-19
+- Status: Accepted
+- Decision: Browser UI → Metric Atlas Node Runtime → GA4/LLM API 흐름을 기본으로 확정한다. GA4/LLM credential은 Node Runtime에서만 resolve하며 브라우저 bundle에 노출하지 않는다. ADR-004 (D 제안, A 승인). PR #11(`packages/runtime` 최소 서버, `metric-atlas serve`), PR #12(demo dashboard runtime→fixture fallback)로 구현·검증됨 (path traversal 방어, credential boolean-only 노출 확인).
+
+## DEC-046 — Runtime API envelope updated with implemented endpoints
+- Date: 2026-08-19
+- Status: Accepted
+- Decision: `docs/08` §9의 Runtime API Envelope에 실제 구현된 `/api/runtime-health`, `/api/llm/generate`(501 fail-closed)를 추가하고, `/api/health`(Analytics Health artifact)와 `/api/runtime-health`(Runtime 자체 상태)를 별개 개념으로 구분한다. `/api/providers`, `/api/connectors/:provider/*`, `/api/query`는 아직 미구현으로 표시한다. ADR-004.
+
+## DEC-047 — packages/runtime co-owned by A and D
+- Date: 2026-08-19
+- Status: Accepted
+- Decision: `docs/04`상 Runtime은 A 통합 영역이지만 D가 최초 구현을 담당했으므로 CODEOWNERS에 `packages/runtime`을 A+D 공동 소유로 등록한다.
