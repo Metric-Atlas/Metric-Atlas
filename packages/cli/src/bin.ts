@@ -6,10 +6,12 @@ import {
   type EventManifest,
   type ScanProjectOptions,
 } from "@metric-atlas/detector";
+import { serveRuntime } from "@metric-atlas/runtime";
 import { diffManifests, formatMarkdownReport } from "./diff.js";
 
 interface ParsedArguments {
-  command: "scan" | "diff" | "help";
+  command: "scan" | "diff" | "serve" | "help";
+  positionals: string[];
   values: Map<string, string[]>;
 }
 
@@ -20,7 +22,8 @@ export async function runCli(argv: string[]): Promise<number> {
     return 0;
   }
   if (args.command === "scan") return runScan(args.values);
-  return runDiff(args.values);
+  if (args.command === "diff") return runDiff(args.values);
+  return runServe(args.positionals, args.values);
 }
 
 async function runScan(values: Map<string, string[]>): Promise<number> {
@@ -70,18 +73,37 @@ async function runDiff(values: Map<string, string[]>): Promise<number> {
   return 0;
 }
 
+async function runServe(positionals: string[], values: Map<string, string[]>): Promise<number> {
+  const root = path.resolve(positionals[0] ?? first(values, "root") ?? process.cwd());
+  const envFile = first(values, "env");
+  const host = first(values, "host");
+  const port = optionalPort(first(values, "port"));
+  const options = { root, ...(envFile ? { envFile } : {}), ...(host ? { host } : {}), ...(port ? { port } : {}) };
+  const runtime = await serveRuntime(options);
+  process.stderr.write(
+    `[metric-atlas] serving ${root} at http://${runtime.host}:${runtime.port}\n`,
+  );
+  await new Promise<void>(() => {});
+  return 0;
+}
+
 function parseArguments(argv: string[]): ParsedArguments {
   const commandValue = argv[0];
   if (!commandValue || commandValue === "help" || commandValue === "--help" || commandValue === "-h") {
-    return { command: "help", values: new Map() };
+    return { command: "help", positionals: [], values: new Map() };
   }
-  if (commandValue !== "scan" && commandValue !== "diff") {
+  if (commandValue !== "scan" && commandValue !== "diff" && commandValue !== "serve") {
     throw new Error(`Unknown command: ${commandValue}`);
   }
+  const positionals: string[] = [];
   const values = new Map<string, string[]>();
   for (let index = 1; index < argv.length; index += 1) {
     const token = argv[index]!;
-    if (!token.startsWith("--")) throw new Error(`Unexpected argument: ${token}`);
+    if (!token.startsWith("--")) {
+      if (commandValue !== "serve") throw new Error(`Unexpected argument: ${token}`);
+      positionals.push(token);
+      continue;
+    }
     const [rawKey, inlineValue] = token.slice(2).split("=", 2);
     if (!rawKey) throw new Error(`Invalid option: ${token}`);
     if (rawKey === "stdout") {
@@ -96,7 +118,7 @@ function parseArguments(argv: string[]): ParsedArguments {
     existing.push(value);
     values.set(rawKey, existing);
   }
-  return { command: commandValue, values };
+  return { command: commandValue, positionals, values };
 }
 
 function list(values: Map<string, string[]>, key: string): string[] {
@@ -113,6 +135,15 @@ function required(values: Map<string, string[]>, key: string): string {
   const value = first(values, key);
   if (!value) throw new Error(`Missing required --${key}`);
   return value;
+}
+
+function optionalPort(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`Invalid --port: ${value}`);
+  }
+  return port;
 }
 
 async function readManifest(file: string): Promise<EventManifest> {
@@ -144,8 +175,10 @@ function helpText(): string {
 Usage:
   metric-atlas scan [--root DIR] [--include GLOB] [--exclude GLOB] [--build-id ID] [--output FILE | --stdout]
   metric-atlas diff --base FILE --head FILE [--format markdown|json] [--output FILE]
+  metric-atlas serve [DIST_DIR] [--host HOST] [--port PORT] [--env FILE]
 
 The scanner reads source files and writes only the requested manifest output. It never modifies source files.
+The local runtime serves built assets and /__metric-atlas/api/* without exposing credentials to the browser bundle.
 `;
 }
 
