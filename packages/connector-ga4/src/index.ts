@@ -21,3 +21,8 @@ export {
   MANAGED_EVENT_REGISTRY_VERSION,
   resolveGa4ManagedState,
 } from "./managed-event-registry.js";
+export {
+  buildHealthItemForDetectedEvent,
+  computeReviewReason,
+  resolveGa4ObservationState,
+} from "./health-engine.js";
