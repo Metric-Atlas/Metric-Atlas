@@ -99,6 +99,9 @@ importers:
       '@metric-atlas/connector-sdk':
         specifier: workspace:*
         version: link:../connector-sdk
+      '@metric-atlas/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/connector-sdk:
     dependencies:
