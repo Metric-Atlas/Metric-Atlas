@@ -2,8 +2,9 @@
 
 - ID: ADR-005
 - Date: 2026-08-19
-- Status: Proposed
+- Status: Accepted
 - Author: Member C (재욱)
+- Accepted by: Member A (가현), 2026-08-19 — reviewed and verified in PR #15 (typecheck/build/test, R&R boundary confirmed)
 
 ## Problem
 
@@ -72,4 +73,4 @@ Breaking 없음. 새 모듈 추가이며 기존 `connector-ga4` export나 `packa
 
 ## Decision
 
-Proposed. A 리뷰 후 Accepted 전환 요청. 두 Registry와 resolver 함수를 `connector-ga4`에 추가하고, 이후 Custom Dimension Gap/Health Engine 구현(docs/06 §6, 후속 PR)이 이를 소비한다.
+Accepted. 두 Registry와 resolver 함수를 `connector-ga4`에 추가하고, Custom Dimension Gap/Health Engine 구현(PR #21, #22/#23)이 이를 소비한다.
