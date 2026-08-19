@@ -26,3 +26,5 @@ export {
   computeReviewReason,
   resolveGa4ObservationState,
 } from "./health-engine.js";
+export { withCache } from "./cache.js";
+export type { CachedAnalyticsConnector, CacheOptions } from "./cache.js";
