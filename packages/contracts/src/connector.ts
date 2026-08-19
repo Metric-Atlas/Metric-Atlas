@@ -49,8 +49,18 @@ export const ConnectorCapabilities = z.object({
   supportedDimensions: z.array(z.string()),
   comparisonSupport: z.boolean(),
   adminMetadataSupport: z.boolean(),
+  /** ADR-007: supports listObservedEventNames() for "GA4 only" Health detection. */
+  eventListingSupport: z.boolean(),
 });
 export type ConnectorCapabilities = z.infer<typeof ConnectorCapabilities>;
+
+/** ADR-007: dedicated result for listing every event name with data in a date range (GA4-only detection). */
+export const Ga4ObservedEventsResult = z.object({
+  resultStatus: ResultStatus,
+  eventNames: z.array(z.string()),
+  qualityFlags: z.array(DataQualityFlag),
+});
+export type Ga4ObservedEventsResult = z.infer<typeof Ga4ObservedEventsResult>;
 
 /**
  * Connector execution-level result (docs/08 §6). Distinct from `QueryResult` (docs/20 §6):
@@ -93,4 +103,9 @@ export interface AnalyticsConnector {
     query: ProviderAgnosticQuery,
   ): Promise<NormalizedAnalyticsResult>;
   capabilities(): ConnectorCapabilities;
+  /** ADR-007: every event name with data in dateRange, for "GA4 only" Health detection. */
+  listObservedEventNames(
+    context: ConnectorContext,
+    dateRange: DateRange,
+  ): Promise<Ga4ObservedEventsResult>;
 }

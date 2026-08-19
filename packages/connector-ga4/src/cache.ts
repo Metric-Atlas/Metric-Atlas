@@ -54,6 +54,9 @@ export function withCache(connector: AnalyticsConnector, options: CacheOptions):
   return {
     testConnection: (context) => connector.testConnection(context),
     capabilities: () => connector.capabilities(),
+    // listObservedEventNames는 GA4-only 판정에서 property당 드물게 호출될 것으로 예상돼
+    // 아직 캐시 대상에 넣지 않았다. 호출 빈도가 늘면 query()와 같은 방식으로 캐시를 추가한다.
+    listObservedEventNames: (context, dateRange) => connector.listObservedEventNames(context, dateRange),
 
     async query(context, query) {
       const key = fingerprint(context, query);

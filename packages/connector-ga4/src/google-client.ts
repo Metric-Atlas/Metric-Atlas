@@ -1,6 +1,11 @@
 import { BetaAnalyticsDataClient } from "@google-analytics/data";
 import { v1beta as adminV1beta } from "@google-analytics/admin";
-import type { Ga4ApiClient, Ga4RunReportRequest, Ga4RunReportResponse } from "./connector.js";
+import type {
+  Ga4ApiClient,
+  Ga4ListEventNamesRequest,
+  Ga4RunReportRequest,
+  Ga4RunReportResponse,
+} from "./connector.js";
 import type { Ga4Credentials } from "./credentials.js";
 
 /**
@@ -29,6 +34,26 @@ export function createGoogleGa4Client(credentials: Ga4Credentials): Ga4ApiClient
             stringFilter: { matchType: "EXACT", value: request.eventName },
           },
         },
+      });
+      return {
+        rowCount: response.rowCount ?? 0,
+        rows: (response.rows ?? []).map((row) => ({
+          dimensionValues: row.dimensionValues ?? undefined,
+          metricValues: row.metricValues ?? undefined,
+        })),
+        metadata: {
+          subjectToThresholding: response.metadata?.subjectToThresholding,
+          dataLossFromOtherRow: response.metadata?.dataLossFromOtherRow,
+        },
+      };
+    },
+
+    async listEventNames(request: Ga4ListEventNamesRequest): Promise<Ga4RunReportResponse> {
+      const [response] = await data.runReport({
+        property: `properties/${request.propertyId}`,
+        dateRanges: request.dateRanges,
+        dimensions: [{ name: "eventName" }],
+        metrics: [{ name: "eventCount" }],
       });
       return {
         rowCount: response.rowCount ?? 0,

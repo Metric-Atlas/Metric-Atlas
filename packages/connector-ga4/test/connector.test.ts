@@ -8,11 +8,16 @@ const OLD_RANGE = { startDate: "2026-06-01", endDate: "2026-06-30" } as const;
 const PREV_RANGE = { startDate: "2026-05-01", endDate: "2026-05-31" } as const;
 
 function fakeClient(overrides: Partial<Ga4ApiClient> & { responses?: Ga4RunReportResponse[] } = {}) {
-  const calls = { runReport: 0, getPropertyTimezone: 0 };
+  const calls = { runReport: 0, getPropertyTimezone: 0, listEventNames: 0 };
   const responses = overrides.responses ?? [];
   const client: Ga4ApiClient = {
     async runReport(request) {
       calls.runReport++;
+      void request;
+      return responses.shift() ?? { rowCount: 0, rows: [], metadata: {} };
+    },
+    async listEventNames(request) {
+      calls.listEventNames++;
       void request;
       return responses.shift() ?? { rowCount: 0, rows: [], metadata: {} };
     },
@@ -189,5 +194,79 @@ describe("Ga4Connector.capabilities", () => {
     expect(caps.supportedMetrics).toEqual(["event_count", "comparison"]);
     expect(caps.comparisonSupport).toBe(true);
     expect(caps.adminMetadataSupport).toBe(true);
+  });
+
+  test("ADR-007: eventListingSupport=true", () => {
+    const { client } = fakeClient();
+    expect(connector(client).capabilities().eventListingSupport).toBe(true);
+  });
+});
+
+describe("Ga4Connector.listObservedEventNames (ADR-007)", () => {
+  test("rows가 있으면 ok + eventName 목록", async () => {
+    const { client } = fakeClient({
+      responses: [
+        {
+          rowCount: 2,
+          rows: [
+            { dimensionValues: [{ value: "page_view" }], metricValues: [{ value: "9000" }] },
+            { dimensionValues: [{ value: "purchase_click" }], metricValues: [{ value: "1240" }] },
+          ],
+          metadata: {},
+        },
+      ],
+    });
+    const result = await connector(client).listObservedEventNames(CONTEXT, OLD_RANGE);
+    expect(result.resultStatus).toBe("ok");
+    expect(result.eventNames).toEqual(["page_view", "purchase_click"]);
+  });
+
+  test("rowCount=0이면 no_rows + 빈 목록", async () => {
+    const { client } = fakeClient({ responses: [{ rowCount: 0, rows: [], metadata: {} }] });
+    const result = await connector(client).listObservedEventNames(CONTEXT, OLD_RANGE);
+    expect(result.resultStatus).toBe("no_rows");
+    expect(result.eventNames).toEqual([]);
+  });
+
+  test("preset dateRange는 unsupported (asAbsolute 실패)", async () => {
+    const { client, calls } = fakeClient();
+    const result = await connector(client).listObservedEventNames(CONTEXT, { preset: "last_30_days" });
+    expect(result.resultStatus).toBe("unsupported");
+    expect(calls.listEventNames).toBe(0);
+  });
+
+  test("권한 오류(gRPC 7)는 throw하지 않고 resultStatus=unauthorized", async () => {
+    const { client } = fakeClient({
+      async listEventNames() {
+        throw Object.assign(new Error("PERMISSION_DENIED"), { code: 7 });
+      },
+    });
+    const result = await connector(client).listObservedEventNames(CONTEXT, OLD_RANGE);
+    expect(result.resultStatus).toBe("unauthorized");
+    expect(result.eventNames).toEqual([]);
+  });
+
+  test("기타 오류는 resultStatus=error", async () => {
+    const { client } = fakeClient({
+      async listEventNames() {
+        throw new Error("network boom");
+      },
+    });
+    const result = await connector(client).listObservedEventNames(CONTEXT, OLD_RANGE);
+    expect(result.resultStatus).toBe("error");
+  });
+
+  test("metadata의 thresholding 신호가 qualityFlags로 매핑됨", async () => {
+    const { client } = fakeClient({
+      responses: [
+        {
+          rowCount: 1,
+          rows: [{ dimensionValues: [{ value: "page_view" }], metricValues: [{ value: "1" }] }],
+          metadata: { subjectToThresholding: true },
+        },
+      ],
+    });
+    const result = await connector(client).listObservedEventNames(CONTEXT, OLD_RANGE);
+    expect(result.qualityFlags).toContain("subject_to_thresholding");
   });
 });
