@@ -1,13 +1,17 @@
 import manifestJson from "../../../fixtures/mock-manifest.json";
 import healthJson from "../../../fixtures/mock-ga4-health.json";
 import queryResultJson from "../../../fixtures/mock-query-result.json";
+import {
+  AnalyticsHealthReport,
+  EventManifest,
+} from "@metric-atlas/contracts";
 import type { Ga4Health, HealthBucket, HealthItem, JoinedRow, Manifest, ManifestEvent } from "./types";
 
-/** Fixture mode remains the offline fallback. No GA4 / LLM call, no credential input, no storage write. */
-export const FIXTURE_MODE = true;
+/** Offline fallback remains enabled. No GA4 / LLM call, credential input, or storage write. */
+export const FIXTURE_FALLBACK_ENABLED = true;
 
-export const manifest = manifestJson as unknown as Manifest;
-export const health = healthJson as unknown as Ga4Health;
+export const manifest = EventManifest.parse(manifestJson);
+export const health = AnalyticsHealthReport.parse(healthJson);
 export const queryFixture = queryResultJson as unknown as {
   queryPlan: unknown;
   result: {
@@ -70,6 +74,7 @@ export async function loadDashboardData(fetcher: typeof fetch = fetch): Promise<
 /** 상호배타 버킷 우선순위: unresolved > parameterRegistrationGap > codeOnly > ga4Managed > ga4Only > healthy */
 export function bucketOf(event: ManifestEvent | null, item: HealthItem | null): HealthBucket {
   if (!item) return "noHealth";
+  if (item.codeState === "unknown" || item.ga4ObservationState === "unknown") return "unresolved";
   if (item.parameterRegistrationStates.some((p) => p.state === "not_registered")) return "parameterRegistrationGap";
   if (item.codeState === "detected" && item.ga4ObservationState !== "observed") return "codeOnly";
   if (item.ga4ManagedState === "managed") return "ga4Managed";
@@ -138,29 +143,9 @@ async function fetchRuntimeJson<T>(
 }
 
 function isManifest(value: unknown): value is Manifest {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<Manifest>;
-  return (
-    typeof candidate.version === "string" &&
-    typeof candidate.buildId === "string" &&
-    typeof candidate.generatedAt === "string" &&
-    Array.isArray(candidate.events) &&
-    Array.isArray(candidate.bindings) &&
-    typeof candidate.scanStats === "object" &&
-    Boolean(candidate.scanStats)
-  );
+  return EventManifest.safeParse(value).success;
 }
 
 function isGa4Health(value: unknown): value is Ga4Health {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<Ga4Health>;
-  return (
-    typeof candidate.generatedAt === "string" &&
-    typeof candidate.provider === "string" &&
-    typeof candidate.propertyId === "string" &&
-    typeof candidate.reportingTimezone === "string" &&
-    typeof candidate.summary === "object" &&
-    Boolean(candidate.summary) &&
-    Array.isArray(candidate.items)
-  );
+  return AnalyticsHealthReport.safeParse(value).success;
 }

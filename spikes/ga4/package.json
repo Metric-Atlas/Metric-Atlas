@@ -1,0 +1,26 @@
+{
+  "name": "@metric-atlas/spike-ga4",
+  "private": true,
+  "description": "C-SPIKE-001: GA4 Data/Admin API 검증용 일회성 스크립트. 프로덕션 코드 아님.",
+  "type": "module",
+  "scripts": {
+    "check": "tsx src/00-check-setup.ts",
+    "spike:report": "tsx src/01-event-count.ts",
+    "spike:timezone": "tsx src/02-timezone.ts",
+    "spike:quality": "tsx src/03-quality-metadata.ts",
+    "spike:freshness": "tsx src/04-freshness.ts",
+    "spike:dimensions": "tsx src/05-custom-dimensions.ts",
+    "spike:all": "tsx src/01-event-count.ts && tsx src/02-timezone.ts && tsx src/03-quality-metadata.ts && tsx src/04-freshness.ts && tsx src/05-custom-dimensions.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google-analytics/admin": "^8.0.0",
+    "@google-analytics/data": "^5.0.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

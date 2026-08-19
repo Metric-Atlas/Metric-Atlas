@@ -1,9 +1,10 @@
 # ADR
 
-- ID: ADR-003
+- ID: ADR-004
 - Date: 2026-08-19
-- Status: Proposed
+- Status: Accepted
 - Author: Member D / 호범
+- Accepted by: Member A (가현), 2026-08-19 — implementation reviewed and verified (typecheck/build/test + manual smoke test including path-traversal probe) in PR #11 (`packages/runtime` minimal server, `metric-atlas serve`), PR #12 (demo dashboard runtime→fixture fallback)
 
 ## Problem
 
@@ -97,4 +98,17 @@ Fixture와 Phase 0 contract는 변경하지 않는다.
 
 ## Decision
 
-Proposed. Metric Atlas MVP의 기본 실 API 호출 구조는 Local Node Runtime으로 둔다. Browser UI는 Metric Atlas runtime API만 호출하며, GA4/LLM credential은 Node Runtime에서만 resolve한다.
+Accepted. Metric Atlas MVP의 기본 실 API 호출 구조는 Local Node Runtime으로 둔다. Browser UI는 Metric Atlas runtime API만 호출하며, GA4/LLM credential은 Node Runtime에서만 resolve한다.
+
+### 구현 후 실제 Runtime API Envelope (PR #11, #12)
+
+MVP runtime API 후보로 제시했던 목록 대신, 실제 구현은 다음 엔드포인트로 확정되었다 (`docs/08` §9에도 반영):
+
+```text
+GET  /__metric-atlas/api/runtime-health   # Runtime 프로세스 자체 상태 (credential 존재 여부만, boolean)
+GET  /__metric-atlas/api/health           # Analytics Health artifact (.metric-atlas/health.json)
+GET  /__metric-atlas/api/manifest         # Event Manifest artifact (.metric-atlas/manifest.json)
+POST /__metric-atlas/api/llm/generate     # 501 fail-closed (LLM adapter 미구현)
+```
+
+`POST /api/query-plan`은 아직 구현되지 않았으며, GA4 Connector(`packages/connector-ga4`, ADR-003) 연동과 함께 후속 작업으로 남는다.

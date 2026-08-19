@@ -1,13 +1,15 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type { EventManifest } from "@metric-atlas/contracts";
 import {
   analyzeSource,
   createBuildId,
   createManifest,
   DEFAULT_EXCLUDE,
   DEFAULT_INCLUDE,
+  detectorAdaptersFor,
   toPosix,
-  type EventManifest,
+  type DetectorAdapterName,
   type SourceAnalysis,
 } from "@metric-atlas/detector";
 import { minimatch } from "minimatch";
@@ -24,6 +26,8 @@ export interface MetricAtlasViteOptions {
   manifestFile?: string;
   manifestEndpoint?: string;
   buildId?: string;
+  /** DEC-037: defaults to ["ga4", "gtm"]. */
+  detectors?: DetectorAdapterName[];
   overlay?: {
     enabled?: boolean;
   };
@@ -43,9 +47,12 @@ export default function metricAtlas(
   const enabled = options.enabled ?? true;
   const include = options.include ?? DEFAULT_INCLUDE;
   const exclude = options.exclude ?? DEFAULT_EXCLUDE;
-  const manifestFile = options.manifestFile ?? "metric-atlas/manifest.json";
+  const manifestFile = options.manifestFile ?? ".metric-atlas/manifest.json";
   const manifestEndpoint = options.manifestEndpoint ?? DEFAULT_MANIFEST_ENDPOINT;
   const overlayEnabled = options.overlay?.enabled ?? true;
+  const adapters = options.detectors
+    ? detectorAdaptersFor(options.detectors)
+    : undefined;
   const overlayModuleId = normalizePath(
     fileURLToPath(import.meta.resolve("@metric-atlas/overlay")),
   );
@@ -141,7 +148,11 @@ export default function metricAtlas(
         analysis = cached.analysis;
       } else {
         const startedAt = performance.now();
-        analysis = analyzeSource(source, { file: relativeFile, buildId });
+        analysis = analyzeSource(source, {
+          file: relativeFile,
+          buildId,
+          ...(adapters ? { adapters } : {}),
+        });
         durationMs += performance.now() - startedAt;
         transformCache.set(relativeFile, { buildId, source, analysis });
       }

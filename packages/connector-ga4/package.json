@@ -1,0 +1,27 @@
+{
+  "name": "@metric-atlas/connector-ga4",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@google-analytics/admin": "^8.0.0",
+    "@google-analytics/data": "^5.0.0",
+    "@metric-atlas/connector-sdk": "workspace:*",
+    "@metric-atlas/contracts": "workspace:*"
+  }
+}

@@ -19,6 +19,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@metric-atlas/contracts": "workspace:*",
     "@babel/generator": "^8.0.0",
     "@babel/parser": "^8.0.4",
     "@babel/traverse": "^8.0.4",

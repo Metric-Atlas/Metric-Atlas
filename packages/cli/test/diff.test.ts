@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DetectedEvent, EventManifest } from "@metric-atlas/detector";
+import type { DetectedEvent, EventManifest } from "@metric-atlas/contracts";
 import { diffManifests, formatMarkdownReport } from "../src/diff.ts";
 
 function event(
@@ -10,6 +10,7 @@ function event(
 ): DetectedEvent {
   return {
     eventKey,
+    implementationKey: `impl_${eventKey}`,
     eventName: eventKey.split(":").slice(1).join(":"),
     emitter,
     analyticsProvider: provider,
@@ -67,5 +68,17 @@ describe("manifest diff", () => {
     expect(markdown).toContain("Changed emitter/provider: 1");
     expect(markdown).toContain("GA4 custom parameter changes");
     expect(markdown).toContain("`campaign_slot`");
+  });
+
+  it("neutralizes multiline/backtick event names in Markdown", () => {
+    const markdown = formatMarkdownReport(
+      diffManifests(
+        manifest([]),
+        manifest([event("ga4:unsafe`\nheading", "ga4", "ga4")]),
+      ),
+    );
+
+    expect(markdown).not.toContain("\nheading`");
+    expect(markdown).toContain("unsafe\\` heading");
   });
 });

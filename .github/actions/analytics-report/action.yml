@@ -1,0 +1,83 @@
+name: Metric Atlas Analytics Report
+description: Scan Base and Head Git trees without changing the worktree and produce a semantic analytics report.
+
+inputs:
+  base-ref:
+    description: Base commit SHA or Git ref.
+    required: true
+  head-ref:
+    description: Head commit SHA or Git ref.
+    required: true
+  detectors:
+    description: Comma-separated detector adapters. Non-MVP adapters are opt-in.
+    default: ga4,gtm
+  include:
+    description: Optional newline-separated include globs. Empty uses the Detector src default.
+    default: ""
+  fail-on-parse-error:
+    description: Return a failing exit code when either tree contains a parse error.
+    default: "false"
+
+outputs:
+  report-path:
+    description: Absolute path to the generated Markdown report.
+    value: ${{ steps.report.outputs.report-path }}
+  manifest-dir:
+    description: Absolute path containing Base and Head manifests.
+    value: ${{ steps.report.outputs.manifest-dir }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      with:
+        node-version: 22.18.0
+
+    - name: Enable Corepack
+      shell: bash
+      run: corepack enable
+
+    - name: Install and build Metric Atlas
+      shell: bash
+      run: |
+        set -euo pipefail
+        corepack pnpm install --frozen-lockfile
+        corepack pnpm build
+
+    - name: Scan Base and Head
+      id: report
+      shell: bash
+      env:
+        BASE_REF: ${{ inputs.base-ref }}
+        HEAD_REF: ${{ inputs.head-ref }}
+        DETECTORS: ${{ inputs.detectors }}
+        INCLUDE: ${{ inputs.include }}
+        FAIL_ON_PARSE_ERROR: ${{ inputs.fail-on-parse-error }}
+      run: |
+        set -euo pipefail
+        report_path="${RUNNER_TEMP}/metric-atlas-analytics-report.md"
+        manifest_dir="${RUNNER_TEMP}/metric-atlas-manifests"
+        args=(
+          report
+          --root "${GITHUB_WORKSPACE}"
+          --base-ref "${BASE_REF}"
+          --head-ref "${HEAD_REF}"
+          --output "${report_path}"
+          --manifest-dir "${manifest_dir}"
+        )
+        if [[ -n "${DETECTORS}" ]]; then
+          args+=(--detectors "${DETECTORS}")
+        fi
+        while IFS= read -r pattern; do
+          if [[ -n "${pattern}" ]]; then
+            args+=(--include "${pattern}")
+          fi
+        done <<< "${INCLUDE}"
+        if [[ "${FAIL_ON_PARSE_ERROR}" == "true" ]]; then
+          args+=(--fail-on-parse-error)
+        fi
+        node packages/cli/dist/bin.js "${args[@]}"
+        cat "${report_path}" >> "${GITHUB_STEP_SUMMARY}"
+        echo "report-path=${report_path}" >> "${GITHUB_OUTPUT}"
+        echo "manifest-dir=${manifest_dir}" >> "${GITHUB_OUTPUT}"

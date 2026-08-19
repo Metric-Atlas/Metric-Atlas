@@ -23,6 +23,6 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@metric-atlas/detector": "workspace:*"
+    "@metric-atlas/contracts": "workspace:*"
   }
 }

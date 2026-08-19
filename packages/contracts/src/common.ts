@@ -78,13 +78,23 @@ export type DataQualityFlag = z.infer<typeof DataQualityFlag>;
 export const MetricType = z.enum(["event_count", "comparison", "custom"]);
 export type MetricType = z.infer<typeof MetricType>;
 
-const PresetDateRange = z.object({ preset: z.string() });
+const PresetDateRange = z.object({
+  preset: z.string(),
+  startDate: z.never().optional(),
+  endDate: z.never().optional(),
+});
 const AbsoluteDateRange = z.object({
+  preset: z.never().optional(),
   startDate: z.string(),
   endDate: z.string(),
 });
 
-/** ADR-001: QueryResult/AnalyticsHealthReport dateRange is always resolved to absolute dates. */
+/**
+ * docs/20 §6. The `never`-typed optional siblings let consumers read `.startDate`/`.endDate`
+ * across the union without narrowing first (ADR-003 fix — the original z.union() lacked these,
+ * which didn't match the documented type and broke direct property access in connector-ga4).
+ * ADR-001: QueryResult/AnalyticsHealthReport dateRange is always resolved to absolute dates.
+ */
 export const DateRange = z.union([PresetDateRange, AbsoluteDateRange]);
 export type DateRange = z.infer<typeof DateRange>;
 

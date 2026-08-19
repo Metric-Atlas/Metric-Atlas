@@ -74,6 +74,10 @@ export function evaluateQuery(row: JoinedRow | null, analysisType: AnalysisType)
 
   if (analysisType === "event_count" && row?.health) {
     const m = row.health.latestMeasurement;
+    if (!m) {
+      out.noResultReason = "최근 측정값이 Health 결과에 없습니다.";
+      return out;
+    }
     if (m.resultStatus === "ok") {
       out.result = {
         value: (m.value ?? 0).toLocaleString(),

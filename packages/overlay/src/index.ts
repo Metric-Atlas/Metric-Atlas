@@ -1,8 +1,9 @@
-import type {
+import {
+  EventManifest as EventManifestSchema,
   DetectedEvent,
   ElementBinding,
-  EventManifest,
-} from "@metric-atlas/detector";
+  type EventManifest,
+} from "@metric-atlas/contracts";
 
 export const METRIC_ATLAS_OVERLAY_TAG = "metric-atlas-overlay";
 
@@ -114,8 +115,9 @@ export class MetricAtlasOverlayElement extends HTMLElement {
       const response = await fetch(url, { credentials: "same-origin" });
       if (!response.ok) throw new Error(`Manifest request failed (${response.status})`);
       const value: unknown = await response.json();
-      if (!isEventManifest(value)) throw new Error("Manifest response has an invalid shape");
-      this.setManifest(value);
+      const parsed = EventManifestSchema.safeParse(value);
+      if (!parsed.success) throw new Error("Manifest response has an invalid shape");
+      this.setManifest(parsed.data);
     } catch (error) {
       this.#status.textContent = error instanceof Error ? error.message : "Manifest load failed";
       this.dispatchEvent(
@@ -233,12 +235,10 @@ export class MetricAtlasOverlayElement extends HTMLElement {
     const candidates = binding.eventKeys.flatMap(
       (eventKey) => this.#eventsByKey.get(eventKey) ?? [],
     );
-    const implementationKeys = new Set(binding.implementationKeys ?? []);
-    const events = implementationKeys.size
-      ? candidates.filter(
-          (event) => event.implementationKey && implementationKeys.has(event.implementationKey),
-        )
-      : candidates;
+    const implementationKeys = new Set(binding.implementationKeys);
+    const events = candidates.filter((event) =>
+      implementationKeys.has(event.implementationKey),
+    );
 
     for (const event of events) {
       const article = document.createElement("article");
@@ -310,18 +310,6 @@ function badge(text: string): HTMLElement {
   element.className = "badge";
   element.textContent = text;
   return element;
-}
-
-function isEventManifest(value: unknown): value is EventManifest {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate.version === "string" &&
-    typeof candidate.buildId === "string" &&
-    Array.isArray(candidate.events) &&
-    Array.isArray(candidate.bindings) &&
-    Array.isArray(candidate.warnings)
-  );
 }
 
 function cssEscape(value: string): string {

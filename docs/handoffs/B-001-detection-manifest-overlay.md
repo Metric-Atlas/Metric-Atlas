@@ -1,5 +1,7 @@
 # Handoff — B-001 Detection / Manifest / Overlay
 
+> 후속 상태: ADR-002 승인 이후 Contract migration, adapter opt-in, Runtime/Demo/PR Report 통합은 `docs/handoffs/B-002-phase0-integration-hardening.md`에서 완료했습니다. 아래 내용은 B-001 제출 시점 기록입니다.
+
 ## Summary
 
 B 소유 범위의 Contract Input, detector/manifest producer, Vite build transform, runtime overlay, scanner/PR diff CLI를 독립 실행 가능한 TypeScript workspace로 구현했습니다. Proposed shared field와 기존 Phase 0 fixture는 freeze하지 않았습니다.
