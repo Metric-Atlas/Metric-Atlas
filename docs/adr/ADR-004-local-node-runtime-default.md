@@ -1,6 +1,6 @@
 # ADR
 
-- ID: ADR-003
+- ID: ADR-004
 - Date: 2026-08-19
 - Status: Proposed
 - Author: Member D / 호범
