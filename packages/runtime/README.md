@@ -16,8 +16,9 @@ Runtime responsibilities:
 Implemented endpoints:
 
 ```text
-GET  /__metric-atlas/api/health
+GET  /__metric-atlas/api/runtime-health
 GET  /__metric-atlas/api/manifest
+GET  /__metric-atlas/api/health
 POST /__metric-atlas/api/llm/generate
 ```
 

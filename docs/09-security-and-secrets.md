@@ -13,6 +13,8 @@ Metric Atlas 자체 SSO는 구현하지 않습니다. 사내 네트워크 또는
 ## 2. Credential
 
 정식 방식:
+- 서버 환경변수
+- `metric-atlas serve --env ./.env.metric-atlas`
 - `GOOGLE_APPLICATION_CREDENTIALS`
 - 또는 Base64 Service Account JSON Secret
 
@@ -21,7 +23,10 @@ Metric Atlas 자체 SSO는 구현하지 않습니다. 사내 네트워크 또는
 - localStorage
 - client bundle
 - manifest
+- fixture
 - log
+
+`.env.metric-atlas`는 Node Runtime에서만 읽습니다. 이 파일은 마케터 브라우저 설정이 아니라 개발자 또는 사내 배포 환경의 secret 입력 경로입니다.
 
 ## 3. Runtime Temporary Input
 
