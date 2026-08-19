@@ -29,7 +29,13 @@ export const EVENT_KO: Record<string, string> = {
   lead_submit: "문의 폼 전송",
   custom_card_click: "카드 클릭",
   signup_complete: "가입 완료",
-  page_view: "페이지 조회"
+  page_view: "페이지 조회",
+  // Metric-Atlas-homepage 데모 사이트 이벤트
+  nav_click: "상단 메뉴 클릭",
+  issue_click: "GitHub 이슈 등록 클릭",
+  contact_click: "문의하기 클릭",
+  sponsor_click: "스폰서 클릭",
+  star_click: "GitHub Star 클릭"
 };
 export const eventKo = (eventName: string): string => EVENT_KO[eventName] ?? "설명 없음";
 
