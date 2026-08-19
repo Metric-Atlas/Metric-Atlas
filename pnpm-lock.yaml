@@ -145,7 +145,17 @@ importers:
         specifier: workspace:*
         version: link:../contracts
 
-  packages/runtime: {}
+  packages/runtime:
+    dependencies:
+      '@metric-atlas/connector-ga4':
+        specifier: workspace:*
+        version: link:../connector-ga4
+      '@metric-atlas/connector-sdk':
+        specifier: workspace:*
+        version: link:../connector-sdk
+      '@metric-atlas/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/vite:
     dependencies:

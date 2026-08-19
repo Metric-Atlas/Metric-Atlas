@@ -2,12 +2,22 @@ import { createReadStream } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
+import {
+  createLiveHealthProvider,
+  HealthLiveError,
+  type LiveHealthProvider,
+} from "./health-live.js";
 
 export interface RuntimeOptions {
   root: string;
   envFile?: string;
   host?: string;
   port?: number;
+  /**
+   * C-003: 라이브 GA4 Health provider. undefined면 process.env로 자동 구성
+   * (GA4 미설정 시 자동으로 비활성), null이면 명시적으로 정적 파일만 서빙.
+   */
+  healthProvider?: LiveHealthProvider | null;
 }
 
 export interface RuntimeHealth {
@@ -39,7 +49,14 @@ export async function serveRuntime(options: RuntimeOptions): Promise<RuntimeServ
     await loadEnvFile(options.envFile);
   }
   const config = resolveConfig(options);
-  const server = createRuntimeServer(config.root);
+  const healthProvider =
+    options.healthProvider !== undefined
+      ? options.healthProvider
+      : createLiveHealthProvider({
+          env: process.env,
+          loadManifest: () => loadManifestArtifact(config.root),
+        });
+  const server = createRuntimeServer(config.root, { healthProvider });
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
@@ -61,11 +78,15 @@ export async function serveRuntime(options: RuntimeOptions): Promise<RuntimeServ
   };
 }
 
-export function createRuntimeServer(root: string) {
+export interface RuntimeServerDeps {
+  healthProvider?: LiveHealthProvider | null;
+}
+
+export function createRuntimeServer(root: string, deps: RuntimeServerDeps = {}) {
   const resolvedRoot = path.resolve(root);
   return createServer(async (request, response) => {
     try {
-      await routeRequest(request, response, resolvedRoot);
+      await routeRequest(request, response, resolvedRoot, deps);
     } catch (error) {
       sendJson(response, 500, {
         error: {
@@ -96,6 +117,7 @@ async function routeRequest(
   request: IncomingMessage,
   response: ServerResponse,
   root: string,
+  deps: RuntimeServerDeps,
 ): Promise<void> {
   const url = new URL(request.url ?? "/", "http://metric-atlas.local");
   if (url.pathname === "/__metric-atlas/api/runtime-health" && request.method === "GET") {
@@ -104,7 +126,7 @@ async function routeRequest(
   }
 
   if (url.pathname === "/__metric-atlas/api/health" && request.method === "GET") {
-    await sendHealth(response, root);
+    await sendHealth(response, root, deps.healthProvider ?? null);
     return;
   }
 
@@ -165,11 +187,58 @@ async function sendManifest(response: ServerResponse, root: string): Promise<voi
   ], "manifest_not_found", "Expected .metric-atlas/manifest.json or manifest.json under the served root.");
 }
 
-async function sendHealth(response: ServerResponse, root: string): Promise<void> {
-  await sendJsonFile(response, [
+/**
+ * C-003: GA4가 구성된 환경에서는 buildAnalyticsHealthReport 라이브 결과를 서빙한다.
+ * 라이브 실패 시 정적 artifact가 있으면 fallback하고, 그것도 없으면 502로 실패
+ * 원인을 드러낸다 (조용한 404보다 진단 가능해야 함 — AGENTS.md "미지원 패턴을
+ * 조용히 무시" 금지 취지).
+ */
+async function sendHealth(
+  response: ServerResponse,
+  root: string,
+  healthProvider: LiveHealthProvider | null,
+): Promise<void> {
+  const staticCandidates = [
     path.join(root, ".metric-atlas", "health.json"),
     path.join(root, "health.json"),
-  ], "health_not_found", "Expected .metric-atlas/health.json or health.json under the served root.");
+  ];
+
+  if (healthProvider) {
+    try {
+      sendJson(response, 200, await healthProvider.getHealth());
+      return;
+    } catch (error) {
+      if (await tryServeJsonFile(response, staticCandidates)) return;
+      sendJson(response, 502, {
+        error: {
+          code: error instanceof HealthLiveError ? error.code : "ga4_health_failed",
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
+      return;
+    }
+  }
+
+  await sendJsonFile(
+    response,
+    staticCandidates,
+    "health_not_found",
+    "Expected .metric-atlas/health.json or health.json under the served root.",
+  );
+}
+
+async function loadManifestArtifact(root: string): Promise<unknown> {
+  for (const file of [
+    path.join(root, ".metric-atlas", "manifest.json"),
+    path.join(root, "manifest.json"),
+  ]) {
+    try {
+      return JSON.parse(await readFile(file, "utf8"));
+    } catch {
+      // Try the next conventional runtime artifact location.
+    }
+  }
+  return undefined;
 }
 
 async function sendJsonFile(
@@ -178,16 +247,21 @@ async function sendJsonFile(
   code: string,
   message: string,
 ): Promise<void> {
+  if (await tryServeJsonFile(response, candidates)) return;
+  sendJson(response, 404, { error: { code, message } });
+}
+
+async function tryServeJsonFile(response: ServerResponse, candidates: string[]): Promise<boolean> {
   for (const file of candidates) {
     try {
       const contents = await readFile(file, "utf8");
       sendJson(response, 200, JSON.parse(contents));
-      return;
+      return true;
     } catch {
       // Try the next conventional runtime artifact location.
     }
   }
-  sendJson(response, 404, { error: { code, message } });
+  return false;
 }
 
 async function sendStaticAsset(
