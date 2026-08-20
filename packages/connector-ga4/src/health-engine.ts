@@ -54,9 +54,17 @@ export function computeReviewReason(
   return null;
 }
 
+/**
+ * docs/20 §3: 같은 eventKey가 여러 구현(DetectedEvent)에 나타나면 Consumer는
+ * eventKey로 묶는다. HealthItem은 논리 이벤트 단위이므로 구현들의 parameters를
+ * 합집합(등장 순서 유지)한 형태로 전달받는다. DetectedEvent 하나를 그대로
+ * 넘겨도 된다 (구현이 1개인 경우).
+ */
+export type LogicalGa4Event = Pick<DetectedEvent, "eventKey" | "eventName" | "parameters">;
+
 export function buildHealthItemForDetectedEvent(input: {
-  /** analyticsProvider="ga4"인 DetectedEvent만 전달한다 (DEC-033 scope). */
-  event: DetectedEvent;
+  /** analyticsProvider="ga4"인 이벤트만 전달한다 (DEC-033 scope). */
+  event: LogicalGa4Event;
   /** event.eventName에 대한 metric="event_count" 조회 결과. */
   queryResult: NormalizedAnalyticsResult;
   customDimensions: CustomDimensionLookup;
@@ -151,8 +159,26 @@ export async function buildAnalyticsHealthReport(input: {
   const ga4Events = manifest.events.filter((event) => event.analyticsProvider === "ga4");
   const manifestEventNames = new Set(ga4Events.map((event) => event.eventName));
 
+  // docs/20 §3: HealthItem은 논리 이벤트(eventKey) 단위 — 구현이 여러 곳이어도
+  // 1개 아이템으로 집계하고(parameters는 합집합), 같은 eventName의 GA4 중복 조회를 막는다.
+  const logicalEvents = new Map<string, LogicalGa4Event>();
+  for (const event of ga4Events) {
+    const existing = logicalEvents.get(event.eventKey);
+    if (!existing) {
+      logicalEvents.set(event.eventKey, {
+        eventKey: event.eventKey,
+        eventName: event.eventName,
+        parameters: [...event.parameters],
+      });
+      continue;
+    }
+    for (const parameter of event.parameters) {
+      if (!existing.parameters.includes(parameter)) existing.parameters.push(parameter);
+    }
+  }
+
   const detectedItems = await Promise.all(
-    ga4Events.map(async (event) => {
+    [...logicalEvents.values()].map(async (event) => {
       const queryResult = await connector.query(context, {
         eventKey: event.eventKey,
         eventName: event.eventName,
