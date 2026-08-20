@@ -1,30 +1,53 @@
 # Contributing to Metric Atlas
 
-## Local Quickstart
+**English** · [한국어](./CONTRIBUTING.ko.md)
+
+Thank you for helping make analytics implementation visible, verifiable, and trustworthy.
+
+## Local quickstart
+
+Requirements: Node.js 22.18 or later.
 
 ```bash
-pnpm install
-pnpm demo
+corepack pnpm install --frozen-lockfile
+corepack pnpm demo
 ```
 
-Demo Mode는 실제 GA4 Credential 없이 Fixture를 사용합니다.
+Demo Mode uses fixtures and does not require real GA4 credentials.
 
-## 작업 원칙
+## Before you begin
 
-- Task Spec 없이 큰 변경을 시작하지 않습니다.
-- 공통 계약 변경은 ADR이 필요합니다.
-- 지원 패턴 추가 시 Fixture와 Detector 문서를 같이 추가합니다.
-- 사용자 소스파일을 수정하는 방식은 허용하지 않습니다.
-- 새 Connector는 `AnalyticsConnector` 계약을 구현해야 합니다.
+Read [AGENTS.md](./AGENTS.md), the project Source of Truth, the decision log, the relevant feature documentation, and the applicable Task Spec before starting a substantial change.
 
-## PR 완료 조건
+## Working principles
 
-- Unit / Fixture / Contract Test 통과
-- 관련 문서 갱신
-- 성능 영향 기록
-- Secret 노출 검사
-- Handoff 작성
+- Do not begin a substantial change without a Task Spec.
+- Shared contract changes require an ADR.
+- When adding a supported pattern, add the corresponding fixture and detector documentation.
+- Changes that modify user source files are not accepted.
+- A new connector must implement the `AnalyticsConnector` contract.
+- Preserve original event names and keep GA4 and GTM semantics distinct.
+- Never expose credentials through browser bundles, `VITE_*`, local storage, Git, or logs.
 
-## Public Release
+## Pull request completion checklist
 
-라이선스와 Semantic Versioning 정책은 공개 릴리스 전 팀이 최종 확정합니다. 기본 제안은 permissive OSS license와 SemVer입니다.
+- Unit, fixture, and contract tests pass.
+- Relevant documentation is updated.
+- Producer and consumer impact is documented for contract changes.
+- Performance impact is recorded.
+- Secret exposure has been checked.
+- Known limitations are listed.
+- A handoff is included.
+
+## Areas for contribution
+
+- Detector fixtures and support for additional direct SDK patterns
+- Connector adapters that follow the shared contract
+- Overlay, dashboard, search, accessibility, and developer-experience improvements
+- Reproducible reports for unsupported or unresolved patterns
+- Documentation, examples, and translations
+- Contract, integration, end-to-end, security, and performance tests
+
+## Public release
+
+The team will finalize the license and Semantic Versioning policy before the public source release. The current proposal is a permissive open-source license with SemVer.

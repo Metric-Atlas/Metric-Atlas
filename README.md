@@ -1,56 +1,62 @@
 # Metric Atlas
 
-Metric Atlas는 React·Vite 프로젝트의 분석 이벤트를 **코드 위치·화면 요소·GA4 실측 데이터와 연결**하는 오픈소스 개발 도구입니다.
+**English** · [한국어](./README.ko.md)
 
-핵심 가치는 GA4 대시보드를 다시 만드는 것이 아니라, **코드에는 무엇이 구현되어 있고 실제 분석 데이터에는 무엇이 관측되는지를 자동 대조하여 Analytics Health를 보여주는 것**입니다.
+Metric Atlas is an open-source developer tool that connects analytics events in React and Vite projects to **source locations, rendered UI elements, and observed GA4 data**.
 
-## 핵심 기능
+Its core value is not rebuilding the GA4 dashboard. Metric Atlas automatically compares **what is implemented in code with what is observed in analytics** and surfaces the result as Analytics Health.
+
+## Core capabilities
 
 ### 1. Event Overlay
-빌드 시 AST를 분석해 `gtag(...)`, `sendGAEvent(...)`, `dataLayer.push(...)` 등 지원 패턴을 찾고, 이벤트가 연결된 네이티브 JSX 요소에 빌드 결과에서만 `data-atlas-id`를 주입합니다.
 
-사내 배포 화면의 Metric Atlas 런처를 켠 뒤 버튼·링크를 호버하면 다음을 확인할 수 있습니다.
+During a build, Metric Atlas analyzes the AST for supported patterns such as `gtag(...)`, `sendGAEvent(...)`, and `dataLayer.push(...)`. It injects `data-atlas-id` only into build output for native JSX elements bound to detected events.
 
-- 원본 이벤트명
-- Tracking Emitter / Analytics Provider
-- 코드 파일과 위치
-- 이벤트 파라미터
-- 바인딩 상태
+Turn on the Metric Atlas launcher in the deployed application and hover over a button or link to inspect:
 
-`dataLayer.push(...)`는 GTM 호출로 탐지하며 GA4로 단정하지 않습니다.
+- the original event name;
+- Tracking Emitter and Analytics Provider;
+- source file and location;
+- event parameters; and
+- binding status.
+
+`dataLayer.push(...)` is detected as a GTM call and is not assumed to target GA4.
 
 ### 2. Analytics Health Dashboard
-`/event-dashboard`의 첫 화면은 단순 이벤트 카운트가 아니라 **Code ↔ GA4 Health**입니다.
 
-- 코드에는 있는데 GA4에서 관측되지 않는 이벤트
-- GA4에는 있는데 코드에서 발견되지 않는 이벤트
-- GA4 자동 수집·Enhanced Measurement로 관리되는 이벤트
-- 코드에서 전송하지만 GA4 Custom Dimension으로 등록되지 않은 커스텀 파라미터
-- 정상적으로 코드와 GA4가 연결된 이벤트
-- Data Quality Flag가 있어 판정에 주의가 필요한 이벤트
+The first view at `/event-dashboard` is **Code ↔ GA4 Health**, not a raw event-count table.
 
-이벤트 발생 수와 기간 비교는 Event Detail에서 제공합니다.
+- Events present in code but not observed in GA4
+- Events observed in GA4 but not discovered in code
+- GA4 automatically collected and Enhanced Measurement events
+- Custom parameters sent by code but not registered as GA4 Custom Dimensions
+- Events connected successfully between code and GA4
+- Results that require caution because of Data Quality Flags
+
+Event Detail provides event counts and period comparisons.
 
 ### 3. Natural Language Query
-사내 LLM 또는 OpenAI-compatible LLM을 연결하면 이벤트와 GA4 결과를 자연어로 조회할 수 있습니다.
 
-이 기능은 **Core MVP의 Release Blocker가 아닙니다.** LLM이 없어도 이벤트 검색·Provider 필터·파일 위치 조회·Analytics Health는 동작합니다.
+Connect an internal LLM or an OpenAI-compatible LLM to query events and GA4 results in natural language.
+
+This feature is **not a Core MVP release blocker**. Event search, provider filters, source-location lookup, and Analytics Health work without an LLM.
 
 ### 4. PR Analytics Change Report
-GitHub Actions에서 Base Commit과 Head Commit을 각각 스캔하여 PR에 이벤트 변경을 전달합니다.
 
-- 추가된 이벤트
-- 삭제된 이벤트
-- Tracking Emitter / Provider 변경
-- 동적 이벤트
-- 지원되지 않는 래퍼 가능성
-- `unresolved` 증가
+GitHub Actions scans the base and head commits and reports analytics changes in the pull request.
 
-별도의 DB나 이전 매니페스트 저장소 없이 Git Commit을 기준선으로 사용합니다.
+- Added events
+- Removed events
+- Tracking Emitter or Provider changes
+- Dynamic events
+- Possible unsupported wrapper usage
+- Increases in `unresolved` results
 
-## 제품 포지셔닝
+Git commits provide the baseline, so no database or previous-manifest store is required.
 
-Tracking Plan을 사람이 먼저 정의하고 코드와 검증하는 도구와 달리, Metric Atlas의 출발점은 **이미 존재하는 코드**입니다.
+## Product positioning
+
+Unlike tools that begin with a manually authored tracking plan and validate code against it, Metric Atlas starts from **the implementation that already exists**.
 
 ```text
 Existing Code
@@ -61,47 +67,47 @@ Existing Code
 → Search / Query
 ```
 
-Metric Atlas는 이벤트 승인·거버넌스 SaaS, BI, GA4 대체재가 아닙니다.
+Metric Atlas is not an event-approval or governance SaaS, a BI tool, or a replacement for GA4.
 
-## 기술 방향
+## Technical direction
 
-- Node.js + TypeScript
-- React + Vite 우선 지원
-- pnpm Workspace
+- Node.js and TypeScript
+- React and Vite first
+- pnpm workspace
 - Vite Plugin API
 - Babel AST
-- 필요 시 TypeScript Compiler API 확장
-- Web Component + Shadow DOM Overlay
-- GA4 Data API / Admin API Connector
+- TypeScript Compiler API when deeper analysis is required
+- Web Component and Shadow DOM overlay
+- GA4 Data API and Admin API connector
 - Single Node Runtime
-- Database 없음
-- 인메모리 캐시
-- 사내 자체 호스팅
-- 개발·OSS 체험용 Local Demo Mode 공식 지원
+- No database
+- In-memory cache
+- Internal self-hosting
+- Official Local Demo Mode for evaluation and open-source contribution
 
-## 빠른 체험
+## Quick demo
 
-API Key 없이 Demo Fixture로 기능 1과 Analytics Health UI를 체험할 수 있어야 합니다.
+Requirements: Node.js 22.18 or later. Demo fixtures let you explore Event Overlay and Analytics Health without an API key.
 
 ```bash
-pnpm install
-pnpm demo
+corepack pnpm install --frozen-lockfile
+corepack pnpm demo
 ```
 
-Demo 앱은 다음 지원/미지원 패턴을 한 화면에서 보여줍니다.
+The demo application shows supported and unsupported patterns together:
 
-- `gtag` 인라인
-- 같은 파일 핸들러
-- `dataLayer.push`
-- 래퍼 경유 호출 — MVP 미지원
-- Custom Component — 이벤트는 탐지하되 오버레이 미지원
-- 동적 이벤트명 — `unresolved`
+- inline `gtag`;
+- same-file handlers;
+- `dataLayer.push`;
+- calls through wrappers — unsupported in the MVP;
+- Custom Components — events remain detected, but overlay injection is unsupported; and
+- dynamic event names — reported as `unresolved`.
 
-## 사용자 프로젝트 설치
+## Install in a user project
 
 ```bash
-pnpm add -D @metric-atlas/vite
-pnpm add @metric-atlas/runtime
+corepack pnpm add -D @metric-atlas/vite
+corepack pnpm add @metric-atlas/runtime
 ```
 
 ```ts
@@ -130,34 +136,38 @@ export default defineConfig({
 });
 ```
 
-## GA4 인증
+## GA4 authentication
 
-정식 운영에서는 환경변수·Secret Manager를 사용합니다.
+Use environment variables or a Secret Manager in production.
 
-권장 우선순위:
+Recommended precedence:
 
 1. `GOOGLE_APPLICATION_CREDENTIALS`
 2. `METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64`
-3. `METRIC_ATLAS_MODE=internal`이며 임시 입력이 명시적으로 허용된 경우 Runtime 메모리 입력
+3. Runtime memory input only when `METRIC_ATLAS_MODE=internal` and temporary input is explicitly allowed
 
-서비스 계정은 대상 GA4 Property에 필요한 최소 읽기 권한으로 추가해야 합니다.
+Add the service account to the target GA4 Property with the minimum required read permissions.
 
-## 문서 읽기 순서
+## Documentation reading order
 
 1. `AGENTS.md`
 2. `docs/00-project-source-of-truth.md`
 3. `docs/15-decision-log.md`
 4. `docs/04-system-architecture.md`
 5. `docs/08-contracts-and-schema.md`
-6. Phase 0 계약 작업이면 `docs/20-phase-0-common-fields.md`
-7. 담당 기능 문서
+6. `docs/20-phase-0-common-fields.md` for Phase 0 contract work
+7. The relevant feature document
 8. `docs/12-team-rnr.md`
 9. `docs/13-collaboration-workflow.md`
 10. `docs/14-testing-and-acceptance.md`
 
 ## Source of Truth
 
-- 사람이 읽는 제품 SoT: `docs/00-project-source-of-truth.md`
-- 확정 의사결정 SoT: `docs/15-decision-log.md`
-- 구현 이후 Machine Contract SoT: `packages/contracts`의 Zod Schema
-- 통합 Markdown은 전달용 편의본이며 SoT가 아닙니다.
+- Human-readable product SoT: `docs/00-project-source-of-truth.md`
+- Accepted decision SoT: `docs/15-decision-log.md`
+- Machine contract SoT after implementation: Zod schemas in `packages/contracts`
+- Aggregated Markdown files are convenience documents, not a Source of Truth.
+
+## Contributing
+
+Contributions are welcome. Read the [Contributing Guide](./CONTRIBUTING.md) or its [한국어 번역](./CONTRIBUTING.ko.md) before starting a change.
