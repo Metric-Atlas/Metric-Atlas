@@ -40,4 +40,6 @@ Existing Implementation
 - **Maintainer list** — 확정. `MAINTAINERS.md`/`MAINTAINERS.ko.md`, `.github/CODEOWNERS`(실제 GitHub 계정 반영). DEC-055.
 - **Release cadence** — 확정 (제안). Phase 6(정식 npm 배포) 이전에는 고정 주기 없이 `main` 반영 시 `dist/vite-plugin` 브랜치가 지속적으로(Continuous) 재빌드된다(`.github/workflows/publish-vite-plugin-dist.yml`). Phase 6 이후에는 공개 패키지에 영향을 주는 PR이 머지될 때마다 배포하는 PR-triggered Continuous Release를 기본으로 하며, 고정 주기(주간/월간)는 채택하지 않는다. 보안 수정은 정규 주기와 무관하게 즉시 배포한다. DEC-056.
 
+이 5개 항목 외에, 2026년 오픈소스 개발자대회 운영규정 제8조⑤⑥(활용한 오픈소스 라이브러리·프레임워크의 출처·라이선스 명시 의무)에 따라 `THIRD-PARTY-NOTICES.md`/`THIRD-PARTY-NOTICES.ko.md`로 전체 워크스페이스 의존성의 라이선스 목록을 공개한다. DEC-057.
+
 License/Security/Maintainer는 확정 결정이며, SemVer/Release cadence는 A가 제안한 정책으로 Phase 6 착수 시 재검토할 수 있다.

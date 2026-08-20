@@ -50,4 +50,4 @@ Read [AGENTS.md](./AGENTS.md), the project Source of Truth, the decision log, th
 
 ## Public release
 
-Licensed under [MIT](./LICENSE). See [`docs/18-positioning-and-open-source.md` §4](./docs/18-positioning-and-open-source.md#4-public-release-gate) for the SemVer policy and release cadence, [`SECURITY.md`](./SECURITY.md) for vulnerability reporting, and [`MAINTAINERS.md`](./MAINTAINERS.md) for the maintainer list.
+Licensed under [MIT](./LICENSE). See [`docs/18-positioning-and-open-source.md` §4](./docs/18-positioning-and-open-source.md#4-public-release-gate) for the SemVer policy and release cadence, [`SECURITY.md`](./SECURITY.md) for vulnerability reporting, [`MAINTAINERS.md`](./MAINTAINERS.md) for the maintainer list, and [`THIRD-PARTY-NOTICES.md`](./THIRD-PARTY-NOTICES.md) for open-source dependency licenses.

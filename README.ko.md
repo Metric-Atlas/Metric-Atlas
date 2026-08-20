@@ -176,4 +176,4 @@ export default defineConfig({
 
 ## 라이선스
 
-[MIT](./LICENSE). 공개 배포되는 `@metric-atlas/*` 패키지는 [Semantic Versioning](./docs/18-positioning-and-open-source.md#4-public-release-gate) 정책을 따릅니다(1.0 이전에는 Minor 버전에서도 Breaking Change 가능). 취약점 신고는 [`SECURITY.ko.md`](./SECURITY.ko.md), Maintainer 목록은 [`MAINTAINERS.ko.md`](./MAINTAINERS.ko.md)를 참고하세요.
+[MIT](./LICENSE). 공개 배포되는 `@metric-atlas/*` 패키지는 [Semantic Versioning](./docs/18-positioning-and-open-source.md#4-public-release-gate) 정책을 따릅니다(1.0 이전에는 Minor 버전에서도 Breaking Change 가능). 취약점 신고는 [`SECURITY.ko.md`](./SECURITY.ko.md), Maintainer 목록은 [`MAINTAINERS.ko.md`](./MAINTAINERS.ko.md), 이 프로젝트가 사용하는 오픈소스 의존성의 라이선스 목록은 [`THIRD-PARTY-NOTICES.ko.md`](./THIRD-PARTY-NOTICES.ko.md)를 참고하세요.

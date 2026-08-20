@@ -277,3 +277,8 @@ Status:
 - Decision: `docs/18` §4가 요구하는 Maintainer 목록을 `MAINTAINERS.md`/`MAINTAINERS.ko.md`로 공개한다. A(`@limgahyun`)/B(`@westofsky`)/C(`@woogisea`)/D(`@enjoylonelines`)의 실제 GitHub 계정을 `docs/12` R&R과 함께 명시한다. 이에 맞춰 `.github/CODEOWNERS`의 placeholder(`@member-a/b/c/d`)를 실제 계정으로 교체해 GitHub CODEOWNERS 자동 리뷰 요청 기능이 실제로 동작하도록 수정한다.
 
 이로써 `docs/18` §4 Public Release Gate 5개 항목(License/SemVer/보안 공개 절차/Maintainer 목록/Release cadence)이 모두 확정되었다.
+
+## DEC-057 — Third-party dependency license notice published (contest §8 compliance)
+- Date: 2026-08-21
+- Status: Accepted
+- Decision: 2026년 오픈소스 개발자대회 운영규정 제8조⑤⑥(활용한 오픈소스 라이브러리·프레임워크의 출처·라이선스 명시 의무)을 충족하기 위해 `THIRD-PARTY-NOTICES.md`/`THIRD-PARTY-NOTICES.ko.md`를 추가한다. 전체 워크스페이스 의존성 그래프(`pnpm licenses list`)를 라이선스별로 정리했으며, GPL/AGPL 등 MIT와 충돌하는 Copyleft 라이선스는 없음을 확인했다. 재생성 방법과 스캔 범위를 문서 상단에 명시한다. FOSSA 등 외부 SaaS 스캐너는 계정 생성이 필요해 채택하지 않았고, 저장소 내 정적 파일로 공개 의무를 충족한다.

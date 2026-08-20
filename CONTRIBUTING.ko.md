@@ -52,4 +52,4 @@ Demo Mode는 Fixture를 사용하므로 실제 GA4 Credential이 필요하지 �
 
 ## 공개 릴리스
 
-[MIT](./LICENSE) 라이선스입니다. SemVer 정책과 Release cadence는 [`docs/18-positioning-and-open-source.md` §4](./docs/18-positioning-and-open-source.md#4-public-release-gate), 취약점 신고는 [`SECURITY.ko.md`](./SECURITY.ko.md), Maintainer 목록은 [`MAINTAINERS.ko.md`](./MAINTAINERS.ko.md)를 참고하세요.
+[MIT](./LICENSE) 라이선스입니다. SemVer 정책과 Release cadence는 [`docs/18-positioning-and-open-source.md` §4](./docs/18-positioning-and-open-source.md#4-public-release-gate), 취약점 신고는 [`SECURITY.ko.md`](./SECURITY.ko.md), Maintainer 목록은 [`MAINTAINERS.ko.md`](./MAINTAINERS.ko.md), 오픈소스 의존성 라이선스 목록은 [`THIRD-PARTY-NOTICES.ko.md`](./THIRD-PARTY-NOTICES.ko.md)를 참고하세요.
