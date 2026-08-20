@@ -250,3 +250,8 @@ Status:
 - Date: 2026-08-19
 - Status: Accepted
 - Decision: `packages/connector-ga4`에 `buildAnalyticsHealthReport()` 조립 함수가 Manifest(GA4 scope, DEC-033) + Connector 쿼리 결과 + Custom Dimension Lookup + Managed Event Registry + `listObservedEventNames()`를 엮어 `AnalyticsHealthReport`를 생성한다. `classifyHealthItemBucket`(packages/contracts)으로 summary를 재계산하고 Manifest `DYNAMIC_EVENT_NAME` warning을 `unresolved`에 합산한다 (docs/20 §5). PR #21/#22(→#23)로 구현·검증 완료. 이 함수를 호출해 `.metric-atlas/health.json`을 실제로 생성/제공하는 Runtime 통합은 후속 작업(A+C).
+
+## DEC-052 — MIT License adopted ahead of public release
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: `docs/18` §4(Public Release Gate)가 요구하는 License 결정을 MIT로 확정한다. `LICENSE` 파일 추가, `package.json`/`packages/vite/package.json`에 `"license": "MIT"` 반영, README/CONTRIBUTING 양 언어본에 명시. SemVer 정책·보안 공개 절차·Maintainer 목록·Release cadence는 아직 미확정으로 남겨둔다 — public 전환 자체를 막지 않되, `docs/18` §4의 나머지 항목은 후속 결정 필요.
