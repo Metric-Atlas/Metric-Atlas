@@ -1,7 +1,7 @@
 # @metric-atlas/demo-react-vite
 
 Runtime 우선 + Fixture fallback 기반 Local Demo Dashboard입니다. Vite dev server의 실제 Detector Manifest를 Overlay와 Dashboard가 소비하고, Health/Query Runtime artifact가 없으면 저장된 fixture로 안전하게 fallback합니다.
-실제 GA4·LLM 호출, Secret 입력 UI, credential 저장은 없습니다.
+실제 GA4 호출, Secret 입력 UI, credential 저장은 없습니다. LLM 설명은 Local Node Runtime에 API key가 설정된 경우에만 Runtime을 통해 요청합니다.
 
 ## 실행
 
@@ -103,3 +103,4 @@ Health에만 있는 이벤트(`ga4:page_view`)는 "코드 미탐지" 행으로 �
 - `analyticsProvider = unknown` (GTM 전송) → 차단
 - 코드 미탐지 이벤트 → 차단
 - `definition` → GA4 요청 없음("실행 불필요")
+- LLM 설명 요청은 `/__metric-atlas/api/llm/generate`로 보내며, API key는 브라우저가 아니라 Local Node Runtime의 env에서만 읽습니다.

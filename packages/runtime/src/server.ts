@@ -136,13 +136,7 @@ async function routeRequest(
   }
 
   if (url.pathname === "/__metric-atlas/api/llm/generate" && request.method === "POST") {
-    sendJson(response, 501, {
-      error: {
-        code: "llm_adapter_not_implemented",
-        message:
-          "LLM generation is reserved for a runtime adapter PR. Keep API keys in the Node Runtime, not in the browser.",
-      },
-    });
+    await generateLlmResponse(request, response);
     return;
   }
 
@@ -154,6 +148,146 @@ async function routeRequest(
   sendJson(response, 404, {
     error: { code: "not_found", message: `No runtime route for ${request.method} ${url.pathname}` },
   });
+}
+
+interface LlmCandidate {
+  eventKey: string;
+  eventName: string;
+  provider: string;
+  emitter?: string;
+  parameters?: string[];
+  sourceFile?: string;
+}
+
+interface LlmGenerateRequest {
+  question?: string;
+  analysisType?: string;
+  candidates?: LlmCandidate[];
+}
+
+async function generateLlmResponse(
+  request: IncomingMessage,
+  response: ServerResponse,
+): Promise<void> {
+  const apiKey = envValue("METRIC_ATLAS_LLM_API_KEY") ?? envValue("OPENAI_API_KEY");
+  if (!apiKey) {
+    sendJson(response, 400, {
+      error: {
+        code: "missing_llm_api_key",
+        message: "Set METRIC_ATLAS_LLM_API_KEY or OPENAI_API_KEY in the Node Runtime environment.",
+      },
+    });
+    return;
+  }
+
+  const body = await readJsonBody<LlmGenerateRequest>(request);
+  const candidates = (body.candidates ?? []).slice(0, llmMaxCandidates());
+  if (!body.question || candidates.length === 0) {
+    sendJson(response, 400, {
+      error: {
+        code: "invalid_llm_request",
+        message: "LLM generation requires a question and at least one candidate event.",
+      },
+    });
+    return;
+  }
+
+  const baseUrl = trimTrailingSlash(envValue("METRIC_ATLAS_LLM_BASE_URL") ?? "https://api.openai.com/v1");
+  const model = envValue("METRIC_ATLAS_LLM_MODEL") ?? "gpt-4o-mini";
+  const timeoutMs = parsePositiveInteger(process.env.METRIC_ATLAS_LLM_TIMEOUT_MS, 10_000);
+  const upstream = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You help marketers understand analytics events. Use only the supplied event metadata. Do not ask for credentials or source code. Reply in Korean.",
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            question: body.question,
+            analysisType: body.analysisType ?? "unknown",
+            candidates,
+          }),
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  const upstreamBody: unknown = await upstream.json().catch(() => null);
+  if (!upstream.ok) {
+    sendJson(response, upstream.status, {
+      error: {
+        code: "llm_upstream_error",
+        message: extractUpstreamError(upstreamBody) ?? `LLM provider returned ${upstream.status}`,
+      },
+    });
+    return;
+  }
+
+  sendJson(response, 200, {
+    provider: envValue("METRIC_ATLAS_LLM_PROVIDER") ?? "openai-compatible",
+    model,
+    content: extractChatContent(upstreamBody),
+  });
+}
+
+async function readJsonBody<T>(request: IncomingMessage): Promise<T> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  if (chunks.length === 0) return {} as T;
+  return JSON.parse(Buffer.concat(chunks).toString("utf8")) as T;
+}
+
+function llmMaxCandidates(): number {
+  return parsePositiveInteger(process.env.METRIC_ATLAS_LLM_MAX_CANDIDATES, 20);
+}
+
+function envValue(key: string): string | undefined {
+  const value = process.env[key]?.trim();
+  return value ? value : undefined;
+}
+
+function parsePositiveInteger(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) return fallback;
+  return parsed;
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function extractChatContent(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+  const choices = (value as { choices?: unknown }).choices;
+  if (!Array.isArray(choices)) return "";
+  const first = choices[0];
+  if (!first || typeof first !== "object") return "";
+  const message = (first as { message?: unknown }).message;
+  if (!message || typeof message !== "object") return "";
+  const content = (message as { content?: unknown }).content;
+  return typeof content === "string" ? content : "";
+}
+
+function extractUpstreamError(value: unknown): string | null {
+  if (!value || typeof value !== "object") return null;
+  const error = (value as { error?: unknown }).error;
+  if (!error || typeof error !== "object") return null;
+  const message = (error as { message?: unknown }).message;
+  return typeof message === "string" ? message : null;
 }
 
 function resolveConfig(options: RuntimeOptions): LoadedConfig {

@@ -6,3 +6,6 @@ test-results/
 *.tsbuildinfo
 .metric-atlas/
 .env
+.env.*
+!.env.example
+!.env.metric-atlas.example

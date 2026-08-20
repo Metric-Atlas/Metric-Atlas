@@ -22,4 +22,4 @@ GET  /__metric-atlas/api/health
 POST /__metric-atlas/api/llm/generate
 ```
 
-`/llm/generate` intentionally returns `501 llm_adapter_not_implemented` until a provider adapter PR adds real LLM calls.
+`/llm/generate` calls an openai-compatible `/chat/completions` endpoint when `METRIC_ATLAS_LLM_API_KEY` or `OPENAI_API_KEY` is configured in the Node Runtime environment. It fails closed with `missing_llm_api_key` when no runtime key is present.
