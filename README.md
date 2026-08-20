@@ -174,4 +174,4 @@ Contributions are welcome. Read the [Contributing Guide](./CONTRIBUTING.md) or i
 
 ## License
 
-[MIT](./LICENSE). Semantic Versioning policy, security disclosure path, maintainer list, and release cadence are still to be finalized before the public source release (`docs/18-positioning-and-open-source.md` §4).
+[MIT](./LICENSE). Published `@metric-atlas/*` packages follow [Semantic Versioning](./docs/18-positioning-and-open-source.md#4-public-release-gate) (pre-1.0: breaking changes may land in minor releases). See [`SECURITY.md`](./SECURITY.md) to report a vulnerability and [`MAINTAINERS.md`](./MAINTAINERS.md) for the maintainer list.

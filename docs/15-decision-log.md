@@ -255,3 +255,25 @@ Status:
 - Date: 2026-08-20
 - Status: Accepted
 - Decision: `docs/18` §4(Public Release Gate)가 요구하는 License 결정을 MIT로 확정한다. `LICENSE` 파일 추가, `package.json`/`packages/vite/package.json`에 `"license": "MIT"` 반영, README/CONTRIBUTING 양 언어본에 명시. SemVer 정책·보안 공개 절차·Maintainer 목록·Release cadence는 아직 미확정으로 남겨둔다 — public 전환 자체를 막지 않되, `docs/18` §4의 나머지 항목은 후속 결정 필요.
+
+## DEC-053 — Semantic Versioning policy adopted for published packages
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: 공개 배포되는 `@metric-atlas/*` 패키지(현재 `@metric-atlas/vite`, ADR-008)는 Lockstep 버전으로 관리한다. 1.0 이전(`0.x.y`)에는 Minor(`0.X.0`)에서도 Breaking Change를 허용하고 Patch(`0.x.Y`)는 하위 호환 수정만 포함한다. 1.0.0은 `docs/02` MVP Core 성공 기준 7개 항목과 `docs/18` §4 Public Release Gate 5개 항목이 모두 닫힌 뒤 컷한다. 1.0 이후에는 표준 SemVer(Major/Minor/Patch)를 따른다. 외부에 독립 배포되지 않는 워크스페이스 전용 패키지(`packages/contracts` 등)는 이 정책 대상이 아니며 `main`을 그대로 따른다. A 제안, `docs/18` §4.
+
+## DEC-054 — Release cadence adopted: continuous, no fixed calendar schedule
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: Phase 6(정식 npm 배포) 이전에는 고정 주기 없이 `main` 반영 시 `dist/vite-plugin` 브랜치가 지속적으로 재빌드되는 현재 체계(`.github/workflows/publish-vite-plugin-dist.yml`)를 그대로 유지한다. Phase 6 이후에는 공개 패키지에 영향을 주는 PR이 머지될 때마다 배포하는 PR-triggered Continuous Release를 기본으로 하고, 고정 주기(주간/월간)는 채택하지 않는다. 보안 수정은 정규 배포와 무관하게 즉시 배포한다. A 제안, `docs/18` §4. 4인 팀 규모에서 전담 Release 관리 없이 예측 가능한 배포를 유지하기 위한 선택이며, 소비자 피드백에 따라 Phase 6 착수 시 재검토할 수 있다.
+
+## DEC-055 — Security disclosure path: SECURITY.md with limgh2002@gmail.com
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: `docs/18` §4가 요구하는 보안 공개 절차를 `SECURITY.md`/`SECURITY.ko.md`로 확정한다. 신고 접수 채널은 `limgh2002@gmail.com`(A)이며, 공개 GitHub Issue 대신 이메일로 비공개 신고하도록 안내한다. 접수 후 영업일 기준 5일 이내 확인 회신을 목표로 한다.
+
+## DEC-056 — Maintainer list published with real GitHub accounts
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: `docs/18` §4가 요구하는 Maintainer 목록을 `MAINTAINERS.md`/`MAINTAINERS.ko.md`로 공개한다. A(`@limgahyun`)/B(`@westofsky`)/C(`@woogisea`)/D(`@enjoylonelines`)의 실제 GitHub 계정을 `docs/12` R&R과 함께 명시한다. 이에 맞춰 `.github/CODEOWNERS`의 placeholder(`@member-a/b/c/d`)를 실제 계정으로 교체해 GitHub CODEOWNERS 자동 리뷰 요청 기능이 실제로 동작하도록 수정한다.
+
+이로써 `docs/18` §4 Public Release Gate 5개 항목(License/SemVer/보안 공개 절차/Maintainer 목록/Release cadence)이 모두 확정되었다.

@@ -176,4 +176,4 @@ export default defineConfig({
 
 ## 라이선스
 
-[MIT](./LICENSE). Semantic Versioning 정책, 보안 공개 절차, Maintainer 목록, Release cadence는 소스 공개 전까지 아직 확정할 항목입니다 (`docs/18-positioning-and-open-source.md` §4).
+[MIT](./LICENSE). 공개 배포되는 `@metric-atlas/*` 패키지는 [Semantic Versioning](./docs/18-positioning-and-open-source.md#4-public-release-gate) 정책을 따릅니다(1.0 이전에는 Minor 버전에서도 Breaking Change 가능). 취약점 신고는 [`SECURITY.ko.md`](./SECURITY.ko.md), Maintainer 목록은 [`MAINTAINERS.ko.md`](./MAINTAINERS.ko.md)를 참고하세요.

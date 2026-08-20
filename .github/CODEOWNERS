@@ -1,25 +1,31 @@
-# Replace placeholders with actual GitHub usernames.
+# A = @limgahyun, B = @westofsky, C = @woogisea, D = @enjoylonelines
+# See MAINTAINERS.md / docs/12-team-rnr.md for role descriptions.
 
-/packages/contracts/ @member-a
-/packages/runtime/ @member-a @member-d
-/docs/00-project-source-of-truth.md @member-a
-/docs/08-contracts-and-schema.md @member-a
-/docs/15-decision-log.md @member-a
+/packages/contracts/ @limgahyun
+/packages/runtime/ @limgahyun @enjoylonelines
+/docs/00-project-source-of-truth.md @limgahyun
+/docs/08-contracts-and-schema.md @limgahyun
+/docs/15-decision-log.md @limgahyun
+/SECURITY.md @limgahyun
+/SECURITY.ko.md @limgahyun
+/MAINTAINERS.md @limgahyun
+/MAINTAINERS.ko.md @limgahyun
 
-/packages/detector/ @member-b
-/packages/overlay/ @member-b
-/packages/vite/ @member-b
-/packages/cli/ @member-b
-/playwright.config.ts @member-b
-/.github/actions/analytics-report/ @member-a @member-b
-/.github/workflows/metric-atlas-analytics-report.yml @member-a @member-b
+/packages/detector/ @westofsky
+/packages/overlay/ @westofsky
+/packages/vite/ @westofsky
+/packages/cli/ @westofsky
+/playwright.config.ts @westofsky
+/.github/actions/analytics-report/ @limgahyun @westofsky
+/.github/workflows/metric-atlas-analytics-report.yml @limgahyun @westofsky
 
-/packages/dashboard/ @member-c
-/packages/connector-sdk/ @member-c
-/packages/connector-ga4/ @member-c
-/packages/analytics-health/ @member-c
+/packages/dashboard/ @woogisea
+/packages/connector-sdk/ @woogisea
+/packages/connector-ga4/ @woogisea
+/packages/analytics-health/ @woogisea
 
-/packages/query-engine/ @member-d
-/packages/llm-openai-compatible/ @member-d
-/apps/demo-react-vite/ @member-d
-/CONTRIBUTING.md @member-d
+/packages/query-engine/ @enjoylonelines
+/packages/llm-openai-compatible/ @enjoylonelines
+/apps/demo-react-vite/ @enjoylonelines
+/CONTRIBUTING.md @enjoylonelines
+/CONTRIBUTING.ko.md @enjoylonelines
