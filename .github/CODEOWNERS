@@ -2,6 +2,8 @@
 
 /packages/contracts/ @member-a
 /packages/runtime/ @member-a @member-d
+/scripts/pack-vite-plugin.mjs @member-a
+/.github/workflows/publish-vite-plugin-dist.yml @member-a
 /docs/00-project-source-of-truth.md @member-a
 /docs/08-contracts-and-schema.md @member-a
 /docs/15-decision-log.md @member-a

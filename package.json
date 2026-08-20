@@ -19,7 +19,8 @@
     "benchmark:detection": "tsc -b && node packages/vite/bench/build-overhead.mjs",
     "benchmark:demo": "tsc -b && node packages/vite/bench/demo-build-overhead.mjs",
     "scan": "node packages/cli/dist/bin.js scan",
-    "demo": "corepack pnpm --filter @metric-atlas/demo-react-vite dev"
+    "demo": "corepack pnpm --filter @metric-atlas/demo-react-vite dev",
+    "pack:vite-plugin": "tsc -b && node scripts/pack-vite-plugin.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
@@ -30,6 +31,7 @@
     "happy-dom": "^20.11.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "esbuild": "^0.24.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"

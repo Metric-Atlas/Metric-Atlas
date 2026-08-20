@@ -250,3 +250,13 @@ Status:
 - Date: 2026-08-19
 - Status: Accepted
 - Decision: `packages/connector-ga4`에 `buildAnalyticsHealthReport()` 조립 함수가 Manifest(GA4 scope, DEC-033) + Connector 쿼리 결과 + Custom Dimension Lookup + Managed Event Registry + `listObservedEventNames()`를 엮어 `AnalyticsHealthReport`를 생성한다. `classifyHealthItemBucket`(packages/contracts)으로 summary를 재계산하고 Manifest `DYNAMIC_EVENT_NAME` warning을 `unresolved`에 합산한다 (docs/20 §5). PR #21/#22(→#23)로 구현·검증 완료. 이 함수를 호출해 `.metric-atlas/health.json`을 실제로 생성/제공하는 Runtime 통합은 후속 작업(A+C).
+
+## DEC-052 — bundledDependencies rejected for external @metric-atlas/vite distribution
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: Issue #32이 제안한 `bundledDependencies` + `pnpm`/`npm pack` 방식은 채택하지 않는다. 실측 결과 pnpm의 기본 isolated linker에서 `pnpm pack`은 아예 동작하지 않고, `npm pack`은 symlink 때문에 `..` 경로를 가진 tar entry를 만들어 npm/tar가 조용히 누락시킨다 — 실제 `npm install`로 재현해 `@babel/types`를 찾지 못해 import가 실패하는 것까지 확인했다. 추가로 `node_modules`를 실제 파일로(symlink 아니게) vendoring해서 커밋해도 `npm install github:...#ref`가 fetch한 tree에서 `node_modules`를 통째로 제거한다는 것도 별도로 확인했다. ADR-008.
+
+## DEC-053 — Standalone @metric-atlas/vite distribution via esbuild inlining + dist/vite-plugin branch
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: `packages/vite`의 Node측 로직에 `@metric-atlas/contracts`/`detector`(둘 다 런타임 의존성, type-only 아님)를 esbuild로 inline하고, `@metric-atlas/overlay`(+contracts)는 별도 파일(`dist/vendor/overlay.js`)로 번들해 `node_modules` 밖에 일반 파일로 배치한다 — overlay는 `import.meta.resolve`로 파일 경로 자체가 필요해서 inline할 수 없기 때문이다. `packages/vite/src/index.ts`의 `resolveOverlayModulePath()`가 vendored 파일을 우선 사용하고 없으면 기존 패키지 resolve로 fallback한다(모노레포 내부 동작 불변, 기존 테스트로 확인). `zod`/Babel 툴체인/`fast-glob`/`minimatch`/`vite`는 실제 npm 패키지로 남겨 consumer의 `npm install`이 정상 처리한다. `scripts/pack-vite-plugin.mjs`가 산출물을 만들고 `.github/workflows/publish-vite-plugin-dist.yml`가 `main` 푸시마다 `dist/vite-plugin` 브랜치에 자동 반영한다. Consumer 설치 방식(`npm install github:...#dist/vite-plugin`)은 issue #32의 원안 그대로 유지. ADR-008.
