@@ -50,4 +50,4 @@ Read [AGENTS.md](./AGENTS.md), the project Source of Truth, the decision log, th
 
 ## Public release
 
-The team will finalize the license and Semantic Versioning policy before the public source release. The current proposal is a permissive open-source license with SemVer.
+Licensed under [MIT](./LICENSE). Semantic Versioning policy, security disclosure path, maintainer list, and release cadence are still to be finalized before the public source release (`docs/18-positioning-and-open-source.md` §4).

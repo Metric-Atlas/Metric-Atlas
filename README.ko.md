@@ -173,3 +173,7 @@ export default defineConfig({
 ## 기여하기
 
 기여를 환영합니다. 변경을 시작하기 전에 [기여 안내](./CONTRIBUTING.ko.md) 또는 [English guide](./CONTRIBUTING.md)를 읽어 주세요.
+
+## 라이선스
+
+[MIT](./LICENSE). Semantic Versioning 정책, 보안 공개 절차, Maintainer 목록, Release cadence는 소스 공개 전까지 아직 확정할 항목입니다 (`docs/18-positioning-and-open-source.md` §4).

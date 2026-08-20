@@ -171,3 +171,7 @@ Add the service account to the target GA4 Property with the minimum required rea
 ## Contributing
 
 Contributions are welcome. Read the [Contributing Guide](./CONTRIBUTING.md) or its [한국어 번역](./CONTRIBUTING.ko.md) before starting a change.
+
+## License
+
+[MIT](./LICENSE). Semantic Versioning policy, security disclosure path, maintainer list, and release cadence are still to be finalized before the public source release (`docs/18-positioning-and-open-source.md` §4).
