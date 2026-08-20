@@ -28,4 +28,12 @@ describe("Korean label mapping", () => {
     expect(valueKo("PROVIDER", "mixpanel")).toBe("");
     expect(eventKo("brand_new_event")).toBe("설명 없음");
   });
+
+  it("labels the Metric-Atlas-homepage demo events", () => {
+    expect(eventKo("nav_click")).toBe("상단 메뉴 클릭");
+    expect(eventKo("issue_click")).toBe("GitHub 이슈 등록 클릭");
+    expect(eventKo("contact_click")).toBe("문의하기 클릭");
+    expect(eventKo("sponsor_click")).toBe("스폰서 클릭");
+    expect(eventKo("star_click")).toBe("GitHub Star 클릭");
+  });
 });
