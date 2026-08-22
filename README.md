@@ -203,3 +203,7 @@ Add the service account to the target GA4 Property with the minimum required rea
 ## Contributing
 
 Contributions are welcome. Read the [Contributing Guide](./CONTRIBUTING.md) or its [한국어 번역](./CONTRIBUTING.ko.md) before starting a change.
+
+## License
+
+[MIT](./LICENSE). Published `@metric-atlas/*` packages follow [Semantic Versioning](./docs/18-positioning-and-open-source.md#4-public-release-gate) (pre-1.0: breaking changes may land in minor releases). See [`SECURITY.md`](./SECURITY.md) to report a vulnerability, [`MAINTAINERS.md`](./MAINTAINERS.md) for the maintainer list, and [`THIRD-PARTY-NOTICES.md`](./THIRD-PARTY-NOTICES.md) for the licenses of open-source dependencies used in this project.

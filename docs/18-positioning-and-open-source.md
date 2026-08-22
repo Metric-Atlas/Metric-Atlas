@@ -32,11 +32,14 @@ Existing Implementation
 
 ## 4. Public Release Gate
 
-공개 릴리스 전에 확정해야 하는 별도 운영 결정:
-- License
-- Semantic Versioning policy
-- Security disclosure path
-- Maintainer list
-- Release cadence
+공개 릴리스 전에 확정해야 하는 별도 운영 결정과 현재 상태:
 
-기본 권장 방향은 permissive license + SemVer이며, 대회/조직 정책 확인 후 확정합니다.
+- **License** — MIT로 확정 (`LICENSE`). DEC-054.
+- **Semantic Versioning policy** — 확정 (제안). 공개 배포되는 `@metric-atlas/*` 패키지(현재 `@metric-atlas/vite`, ADR-008)는 Lockstep 버전으로 관리한다. 1.0 이전(`0.x.y`)에는 Minor(`0.X.0`)에서도 Breaking Change가 가능하고 Patch(`0.x.Y`)는 하위 호환 수정만 포함한다. 1.0.0은 `docs/02` MVP Core Release Blocker 7개 항목과 본 §4의 5개 항목이 모두 닫힌 뒤 컷한다. 1.0 이후에는 표준 SemVer(Major/Minor/Patch)를 따른다. `packages/contracts` 등 외부에 독립 배포되지 않는 워크스페이스 전용 패키지는 이 정책 대상이 아니며 `main`을 그대로 따른다. DEC-055.
+- **Security disclosure path** — 확정. `SECURITY.md`/`SECURITY.ko.md`, 연락처 `limgh2002@gmail.com`. DEC-057.
+- **Maintainer list** — 확정. `MAINTAINERS.md`/`MAINTAINERS.ko.md`, `.github/CODEOWNERS`(실제 GitHub 계정 반영). DEC-058.
+- **Release cadence** — 확정 (제안). Phase 6(정식 npm 배포) 이전에는 고정 주기 없이 `main` 반영 시 `dist/vite-plugin` 브랜치가 지속적으로(Continuous) 재빌드된다(`.github/workflows/publish-vite-plugin-dist.yml`). Phase 6 이후에는 공개 패키지에 영향을 주는 PR이 머지될 때마다 배포하는 PR-triggered Continuous Release를 기본으로 하며, 고정 주기(주간/월간)는 채택하지 않는다. 보안 수정은 정규 주기와 무관하게 즉시 배포한다. DEC-056.
+
+이 5개 항목 외에, 2026년 오픈소스 개발자대회 운영규정 제8조⑤⑥(활용한 오픈소스 라이브러리·프레임워크의 출처·라이선스 명시 의무)에 따라 `THIRD-PARTY-NOTICES.md`/`THIRD-PARTY-NOTICES.ko.md`로 전체 워크스페이스 의존성의 라이선스 목록을 공개한다. DEC-059.
+
+License/Security/Maintainer는 확정 결정이며, SemVer/Release cadence는 A가 제안한 정책으로 Phase 6 착수 시 재검토할 수 있다.

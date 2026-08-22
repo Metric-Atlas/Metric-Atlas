@@ -260,3 +260,35 @@ Status:
 - Date: 2026-08-20
 - Status: Accepted
 - Decision: `packages/vite`의 Node측 로직에 `@metric-atlas/contracts`/`detector`(둘 다 런타임 의존성, type-only 아님)를 esbuild로 inline하고, `@metric-atlas/overlay`(+contracts)는 별도 파일(`dist/vendor/overlay.js`)로 번들해 `node_modules` 밖에 일반 파일로 배치한다 — overlay는 `import.meta.resolve`로 파일 경로 자체가 필요해서 inline할 수 없기 때문이다. `packages/vite/src/index.ts`의 `resolveOverlayModulePath()`가 vendored 파일을 우선 사용하고 없으면 기존 패키지 resolve로 fallback한다(모노레포 내부 동작 불변, 기존 테스트로 확인). `zod`/Babel 툴체인/`fast-glob`/`minimatch`/`vite`는 실제 npm 패키지로 남겨 consumer의 `npm install`이 정상 처리한다. `scripts/pack-vite-plugin.mjs`가 산출물을 만들고 `.github/workflows/publish-vite-plugin-dist.yml`가 `main` 푸시마다 `dist/vite-plugin` 브랜치에 자동 반영한다. Consumer 설치 방식(`npm install github:...#dist/vite-plugin`)은 issue #32의 원안 그대로 유지. ADR-008.
+
+## DEC-054 — MIT License adopted ahead of public release
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: `docs/18` §4(Public Release Gate)가 요구하는 License 결정을 MIT로 확정한다. `LICENSE` 파일 추가, `package.json`/`packages/vite/package.json`에 `"license": "MIT"` 반영, README/CONTRIBUTING 양 언어본에 명시. SemVer 정책·보안 공개 절차·Maintainer 목록·Release cadence는 아직 미확정으로 남겨둔다 — public 전환 자체를 막지 않되, `docs/18` §4의 나머지 항목은 후속 결정 필요.
+
+## DEC-055 — Semantic Versioning policy adopted for published packages
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: 공개 배포되는 `@metric-atlas/*` 패키지(현재 `@metric-atlas/vite`, ADR-008)는 Lockstep 버전으로 관리한다. 1.0 이전(`0.x.y`)에는 Minor(`0.X.0`)에서도 Breaking Change를 허용하고 Patch(`0.x.Y`)는 하위 호환 수정만 포함한다. 1.0.0은 `docs/02` MVP Core 성공 기준 7개 항목과 `docs/18` §4 Public Release Gate 5개 항목이 모두 닫힌 뒤 컷한다. 1.0 이후에는 표준 SemVer(Major/Minor/Patch)를 따른다. 외부에 독립 배포되지 않는 워크스페이스 전용 패키지(`packages/contracts` 등)는 이 정책 대상이 아니며 `main`을 그대로 따른다. A 제안, `docs/18` §4.
+
+## DEC-056 — Release cadence adopted: continuous, no fixed calendar schedule
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: Phase 6(정식 npm 배포) 이전에는 고정 주기 없이 `main` 반영 시 `dist/vite-plugin` 브랜치가 지속적으로 재빌드되는 현재 체계(`.github/workflows/publish-vite-plugin-dist.yml`)를 그대로 유지한다. Phase 6 이후에는 공개 패키지에 영향을 주는 PR이 머지될 때마다 배포하는 PR-triggered Continuous Release를 기본으로 하고, 고정 주기(주간/월간)는 채택하지 않는다. 보안 수정은 정규 배포와 무관하게 즉시 배포한다. A 제안, `docs/18` §4. 4인 팀 규모에서 전담 Release 관리 없이 예측 가능한 배포를 유지하기 위한 선택이며, 소비자 피드백에 따라 Phase 6 착수 시 재검토할 수 있다.
+
+## DEC-057 — Security disclosure path: SECURITY.md with limgh2002@gmail.com
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: `docs/18` §4가 요구하는 보안 공개 절차를 `SECURITY.md`/`SECURITY.ko.md`로 확정한다. 신고 접수 채널은 `limgh2002@gmail.com`(A)이며, 공개 GitHub Issue 대신 이메일로 비공개 신고하도록 안내한다. 접수 후 영업일 기준 5일 이내 확인 회신을 목표로 한다.
+
+## DEC-058 — Maintainer list published with real GitHub accounts
+- Date: 2026-08-20
+- Status: Accepted
+- Decision: `docs/18` §4가 요구하는 Maintainer 목록을 `MAINTAINERS.md`/`MAINTAINERS.ko.md`로 공개한다. A(`@limgahyun`)/B(`@westofsky`)/C(`@woogisea`)/D(`@enjoylonelines`)의 실제 GitHub 계정을 `docs/12` R&R과 함께 명시한다. 이에 맞춰 `.github/CODEOWNERS`의 placeholder(`@member-a/b/c/d`)를 실제 계정으로 교체해 GitHub CODEOWNERS 자동 리뷰 요청 기능이 실제로 동작하도록 수정한다.
+
+이로써 `docs/18` §4 Public Release Gate 5개 항목(License/SemVer/보안 공개 절차/Maintainer 목록/Release cadence)이 모두 확정되었다.
+
+## DEC-059 — Third-party dependency license notice published (contest §8 compliance)
+- Date: 2026-08-21
+- Status: Accepted
+- Decision: 2026년 오픈소스 개발자대회 운영규정 제8조⑤⑥(활용한 오픈소스 라이브러리·프레임워크의 출처·라이선스 명시 의무)을 충족하기 위해 `THIRD-PARTY-NOTICES.md`/`THIRD-PARTY-NOTICES.ko.md`를 추가한다. 전체 워크스페이스 의존성 그래프(`pnpm licenses list`)를 라이선스별로 정리했으며, GPL/AGPL 등 MIT와 충돌하는 Copyleft 라이선스는 없음을 확인했다. 재생성 방법과 스캔 범위를 문서 상단에 명시한다. FOSSA 등 외부 SaaS 스캐너는 계정 생성이 필요해 채택하지 않았고, 저장소 내 정적 파일로 공개 의무를 충족한다.

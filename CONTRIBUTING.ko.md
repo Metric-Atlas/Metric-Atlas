@@ -52,4 +52,4 @@ Demo Mode는 Fixture를 사용하므로 실제 GA4 Credential이 필요하지 �
 
 ## 공개 릴리스
 
-라이선스와 Semantic Versioning 정책은 소스 공개 전에 팀이 최종 확정합니다. 현재 제안은 Permissive Open-source License와 SemVer입니다.
+[MIT](./LICENSE) 라이선스입니다. SemVer 정책과 Release cadence는 [`docs/18-positioning-and-open-source.md` §4](./docs/18-positioning-and-open-source.md#4-public-release-gate), 취약점 신고는 [`SECURITY.ko.md`](./SECURITY.ko.md), Maintainer 목록은 [`MAINTAINERS.ko.md`](./MAINTAINERS.ko.md), 오픈소스 의존성 라이선스 목록은 [`THIRD-PARTY-NOTICES.ko.md`](./THIRD-PARTY-NOTICES.ko.md)를 참고하세요.
