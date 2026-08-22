@@ -3,6 +3,8 @@
 
 /packages/contracts/ @limgahyun
 /packages/runtime/ @limgahyun @enjoylonelines
+/scripts/pack-vite-plugin.mjs @limgahyun
+/.github/workflows/publish-vite-plugin-dist.yml @limgahyun
 /docs/00-project-source-of-truth.md @limgahyun
 /docs/08-contracts-and-schema.md @limgahyun
 /docs/15-decision-log.md @limgahyun

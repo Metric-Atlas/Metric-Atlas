@@ -1,0 +1,79 @@
+name: Publish Vite Plugin Distribution
+
+# Issue #32: keep the `dist/vite-plugin` branch (a self-contained, installable
+# `@metric-atlas/vite` build for consumers outside this monorepo — see
+# docs/adr/ADR-008-standalone-vite-plugin-distribution.md) in sync with main.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/contracts/**"
+      - "packages/detector/**"
+      - "packages/overlay/**"
+      - "packages/vite/**"
+      - "scripts/pack-vite-plugin.mjs"
+      - ".github/workflows/publish-vite-plugin-dist.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-vite-plugin-dist
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.18.0
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install and build
+        run: |
+          set -euo pipefail
+          corepack pnpm install --frozen-lockfile
+          corepack pnpm build
+
+      - name: Pack vite plugin distribution
+        run: node scripts/pack-vite-plugin.mjs
+
+      - name: Publish to dist/vite-plugin branch
+        run: |
+          set -euo pipefail
+          git config user.name "metric-atlas-bot"
+          git config user.email "noreply@github.com"
+          source_sha="$(git rev-parse HEAD)"
+          worktree_dir="$(mktemp -d)"
+
+          if git ls-remote --exit-code --heads origin dist/vite-plugin > /dev/null 2>&1; then
+            git fetch origin dist/vite-plugin
+            git worktree add "$worktree_dir" origin/dist/vite-plugin
+            git -C "$worktree_dir" checkout -B dist/vite-plugin
+          else
+            git worktree add --detach "$worktree_dir"
+            git -C "$worktree_dir" checkout --orphan dist/vite-plugin
+            git -C "$worktree_dir" rm -rf . > /dev/null 2>&1 || true
+          fi
+
+          find "$worktree_dir" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R dist-vite-plugin/. "$worktree_dir"/
+
+          cd "$worktree_dir"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+            exit 0
+          fi
+          git commit -m "chore: publish vite plugin dist from ${source_sha}"
+          git push origin HEAD:dist/vite-plugin

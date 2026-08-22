@@ -1,5 +1,6 @@
 node_modules/
 dist/
+/dist-vite-plugin/
 coverage/
 playwright-report/
 test-results/
