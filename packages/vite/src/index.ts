@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { EventManifest } from "@metric-atlas/contracts";
@@ -53,9 +54,7 @@ export default function metricAtlas(
   const adapters = options.detectors
     ? detectorAdaptersFor(options.detectors)
     : undefined;
-  const overlayModuleId = normalizePath(
-    fileURLToPath(import.meta.resolve("@metric-atlas/overlay")),
-  );
+  const overlayModuleId = normalizePath(resolveOverlayModulePath());
   let config: ResolvedConfig | null = null;
   let generatedAt = new Date().toISOString();
   let buildId = options.buildId ?? createBuildId(generatedAt);
@@ -220,6 +219,19 @@ export default function metricAtlas(
   };
 
   return plugin;
+}
+
+/**
+ * Prefer a bundled sibling file (`dist/vendor/overlay.js`) when present — this is how the
+ * standalone public distribution (issue #32) ships `@metric-atlas/overlay` without a
+ * resolvable `node_modules` entry, since `npm install github:...#ref` strips any vendored
+ * `node_modules` content from the fetched tree. Falls back to normal package resolution for
+ * monorepo development, where `@metric-atlas/overlay` is a real pnpm workspace dependency.
+ */
+function resolveOverlayModulePath(): string {
+  const vendored = fileURLToPath(new URL("./vendor/overlay.js", import.meta.url));
+  if (existsSync(vendored)) return vendored;
+  return fileURLToPath(import.meta.resolve("@metric-atlas/overlay"));
 }
 
 function sourceFile(id: string): string | null {

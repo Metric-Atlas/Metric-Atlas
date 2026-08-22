@@ -107,6 +107,38 @@ Demo 앱은 다음 지원·미지원 패턴을 한 화면에서 보여줍니다.
 
 ## 사용자 프로젝트 설치
 
+이 프로젝트는 아직 `@metric-atlas/vite`를 npm에 publish하지 않았습니다(SemVer/레지스트리 릴리스는 이후 OSS 단계에서 계획됨). 그 전까지는 이 레포의 `dist/vite-plugin` 브랜치에서 설치합니다 — 내부 `@metric-atlas/*` 패키지가 이미 번들된 독립 실행 가능한 빌드입니다(`docs/adr/ADR-008-standalone-vite-plugin-distribution.md` 참고):
+
+```bash
+npm install "github:Metric-Atlas/Metric-Atlas#dist/vite-plugin"
+```
+
+```ts
+// vite.config.ts
+import { defineConfig, type PluginOption } from "vite";
+import react from "@vitejs/plugin-react";
+
+async function metricAtlasPlugin(): Promise<PluginOption[]> {
+  if (process.env.METRIC_ATLAS_ENABLED !== "true") return [];
+  const { default: metricAtlas } = await import("@metric-atlas/vite");
+  return [metricAtlas({ enabled: true, overlay: { enabled: true } })];
+}
+
+export default defineConfig(async () => ({
+  plugins: [...(await metricAtlasPlugin()), react()],
+}));
+```
+
+```bash
+METRIC_ATLAS_ENABLED=true npm run build
+```
+
+Vercel 같은 배포 환경에서는 `METRIC_ATLAS_ENABLED=true`를 Preview 환경변수로만 등록하면 production 빌드에는 영향이 없습니다. 위 동적 `import()`는 패키지가 설치되지 않은 경우에도 의존성을 선택적으로 유지합니다.
+
+`dist/vite-plugin` 브랜치는 `packages/{contracts,detector,overlay,vite}`를 건드리는 `main` 푸시마다 자동으로 재빌드됩니다(`.github/workflows/publish-vite-plugin-dist.yml` 참고). SemVer 범위가 아니라 브랜치 참조이므로 `npm update`로 새 커밋을 자동으로 받아오지 않습니다 — 해당 브랜치 참조로 `npm install`을 다시 실행하거나, 재현 가능한 설치를 원하면 커밋 SHA를 고정하세요(`#dist/vite-plugin@<sha>`).
+
+### 이 레포가 레지스트리에 publish된 이후
+
 ```bash
 corepack pnpm add -D @metric-atlas/vite
 corepack pnpm add @metric-atlas/runtime
