@@ -1,0 +1,36 @@
+{
+  "name": "@metric-atlas/vite",
+  "version": "0.1.0",
+  "description": "Metric Atlas Vite plugin — standalone distribution (see docs/adr/ADR-008)",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.js.map",
+    "index.d.ts",
+    "vendor/**",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "peerDependencies": {
+    "vite": ">=6.0.0 <9.0.0"
+  },
+  "dependencies": {
+    "zod": "^3.23.8",
+    "@babel/generator": "^8.0.0",
+    "@babel/parser": "^8.0.4",
+    "@babel/traverse": "^8.0.4",
+    "@babel/types": "^8.0.4",
+    "fast-glob": "^3.3.3",
+    "minimatch": "^10.2.6"
+  }
+}
