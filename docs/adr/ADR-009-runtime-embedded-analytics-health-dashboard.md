@@ -28,7 +28,7 @@ Ship the Analytics Health Dashboard **embedded in `@metric-atlas/runtime`** (ser
 2. `packages/runtime`'s build copies `packages/dashboard`'s built assets into its own `dist/` and `packages/runtime/src/server.ts` serves them (with SPA history-mode fallback) at a configurable path. Default: `/__metric-atlas/dashboard`.
 3. The dashboard bundle fetches `/__metric-atlas/api/manifest` and `/__metric-atlas/api/health` at runtime (relative URLs, same-origin as the Runtime serving it) — reusing the existing runtime→fixture fallback pattern from `apps/demo-react-vite/src/data.ts` so the page never crashes or shows blank before credentials are configured.
 4. `packages/cli`'s `serve` command gains a `--dashboard-path` flag (and `RuntimeOptions.dashboardPath`) so a consumer can move the route if it collides with an existing path on their own site.
-5. `apps/demo-react-vite` is refactored to consume `packages/dashboard` as a workspace dependency instead of duplicating the view/component code, so there is exactly one implementation.
+5. `apps/demo-react-vite` should eventually consume `packages/dashboard` as a workspace dependency instead of keeping its own copy of the view/component code, so there is exactly one implementation. **Deferred**: the first implementation PR extracted `packages/dashboard` from a copy of the demo app's code rather than refactoring the demo app itself to depend on it, since doing both in one change (new embedding behavior + touching the demo app's already-tested composition root) was judged unnecessary risk under the contest deadline. Duplication between the two exists until this follow-up lands; tracked, not silently dropped.
 
 This keeps the self-hosted security model intact — a consumer still deploys their own `@metric-atlas/runtime` instance with their own GA4 credentials, same as before this ADR — but they no longer have to write or copy any dashboard UI code themselves. Deploying the Runtime is unavoidable (GA4 needs a live server); building the dashboard by hand is what this removes.
 
@@ -36,7 +36,7 @@ This keeps the self-hosted security model intact — a consumer still deploys th
 
 - Dashboard UI extraction/packaging: primarily C's ownership area (`docs/12`: "GA4 Connector & Analytics Health Dashboard"), implemented here as part of closing this ADR ahead of the contest submission deadline.
 - `packages/runtime`, `packages/cli`: A+D ownership (`DEC-047`).
-- `apps/demo-react-vite`: refactored to depend on the new `packages/dashboard` package; no behavior change from a user's perspective.
+- `apps/demo-react-vite`: not yet refactored to depend on the new `packages/dashboard` package (see item 5 above) — still has its own copy of the same view/component code for now.
 
 ## Consumers affected
 
