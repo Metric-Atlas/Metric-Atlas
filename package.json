@@ -21,7 +21,8 @@
     "benchmark:demo": "tsc -b && node packages/vite/bench/demo-build-overhead.mjs",
     "scan": "node packages/cli/dist/bin.js scan",
     "demo": "corepack pnpm --filter @metric-atlas/demo-react-vite dev",
-    "pack:vite-plugin": "tsc -b && node scripts/pack-vite-plugin.mjs"
+    "pack:vite-plugin": "tsc -b && node scripts/pack-vite-plugin.mjs",
+    "build:runtime-dashboard": "tsc -b && node scripts/embed-dashboard-in-runtime.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
