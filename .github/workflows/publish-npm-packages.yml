@@ -1,0 +1,56 @@
+name: Publish npm packages
+
+# Publishes the public @metric-atlas/* packages to the npm registry.
+# DEC-055: lockstep versioning — packages/{contracts,detector,overlay,vite,runtime,cli,
+# connector-sdk,connector-ga4} share one version number, bumped together via
+# scripts/bump-published-packages.mjs before this workflow runs.
+# DEC-056: continuous, PR-triggered releases — no fixed calendar cadence. Manual
+# dispatch only (not push-triggered) so a human decides when a release actually ships.
+#
+# packages/dashboard and apps/demo-react-vite are `"private": true` and are skipped by
+# `pnpm -r publish` automatically. packages/dashboard ships embedded inside
+# @metric-atlas/runtime instead (ADR-009) — see the "Embed dashboard" step below.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-npm-packages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.18.0
+          registry-url: https://registry.npmjs.org
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Build
+        run: corepack pnpm build
+
+      - name: Embed Analytics Health Dashboard in @metric-atlas/runtime
+        run: corepack pnpm build:runtime-dashboard
+
+      - name: Test
+        run: corepack pnpm test
+
+      - name: Publish
+        run: corepack pnpm -r publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
