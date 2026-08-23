@@ -129,3 +129,13 @@ provider + propertyId + eventName + dateRange + metric + dimensions + filters
 - IP/Runtime Session rate limit
 - 초과 시 queue 또는 429
 - 실제 기본값은 `.env.example`에서 설정
+
+## 11. Dashboard 배포 방식
+
+Dashboard UI(`packages/dashboard`)는 소비자가 별도로 설치하는 패키지도, Vite Plugin 빌드 옵션도 아닙니다. `@metric-atlas/runtime`(`metric-atlas serve`)이 빌드 시 정적 자산으로 포함해 기본 경로 `/__metric-atlas/dashboard`에서 서빙하며, `--dashboard-path`로 변경할 수 있습니다.
+
+이렇게 설계한 이유(ADR-009):
+- GA4 조회는 매 요청마다 credential을 쥔 살아있는 서버가 필요해서, `vite build`로 만드는 정적 산출물에는 애초에 라이브 대시보드를 넣을 방법이 없습니다.
+- Metric-Atlas가 공유 호스팅 서비스(예: `dashboard.metric-atlas.site`)로 이 문제를 대신 해결하는 방안은 제3자 GA4 credential을 중앙에서 보관해야 해서 현재 self-hosted 보안 모델(`docs/09`)과 "MVP엔 내장 인증 없음"(`DEC-011`)을 뒤집는 SaaS급 스코프 변경이라 채택하지 않았습니다.
+
+소비자는 여전히 Runtime을 자기 인프라에 배포하고 GA4 credential을 설정해야 하지만(§4), 그 이상 Dashboard UI를 직접 만들거나 복붙할 필요가 없습니다. Runtime을 공개 URL로 배포하면 Dashboard도 누구나 열람 가능해지므로, 접근 제한은 배포/네트워크 레벨에서 처리해야 합니다(Risk Register R-11).

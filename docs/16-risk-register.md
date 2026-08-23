@@ -49,7 +49,7 @@ GA4 자동 이벤트가 data-only 목록을 오염시킬 수 있음.
 대응: Zod Machine SoT + contract tests + README E2E.
 
 ## R-11 Authentication delegated to infrastructure
-사내 인증이 없으므로 내부 접근권 = Metric Atlas 제공 GA4 데이터 조회 가능.
+사내 인증이 없으므로 내부 접근권 = Metric Atlas 제공 GA4 데이터 조회 가능. ADR-009로 Dashboard가 Runtime에 내장되면서, Runtime을 공개 URL로 배포할 경우 이 리스크가 Dashboard 화면에도 그대로 적용됨(credential 자체는 아니지만 이벤트명/카운트/GA4 관측 상태가 노출).
 
 대응:
 - 내부 네트워크/배포 접근 제한

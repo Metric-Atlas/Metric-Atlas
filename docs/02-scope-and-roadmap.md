@@ -79,6 +79,7 @@ Phase 0 계약 v1 Freeze 전에 `docs/17-ga4-spike-plan.md`의 핵심 항목을 
 - Health Summary
 - Event Detail
 - 기간 비교
+- 배포: `packages/dashboard`로 UI를 추출해 `@metric-atlas/runtime`에 내장 서빙(ADR-009, DEC-061) — 소비자 설치형 패키지나 Vite Plugin 옵션이 아님
 
 ## Phase 4 — PR Analytics Change Report
 - Base/Head Scan

@@ -13,7 +13,7 @@ the machine running the Runtime.
 
 ```bash
 cat > .env.metric-atlas <<'EOF'
-METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+METRIC_ATLAS_GA4_PROPERTY_ID=123456789
 GOOGLE_APPLICATION_CREDENTIALS=/secure/path/metric-atlas-reader.json
 METRIC_ATLAS_GA4_HEALTH_WINDOW_DAYS=30
 METRIC_ATLAS_GA4_RECENT_WINDOW_HOURS=48
@@ -34,6 +34,18 @@ curl http://127.0.0.1:8787/__metric-atlas/api/runtime-health
 curl http://127.0.0.1:8787/__metric-atlas/api/health
 ```
 
+Then open the Analytics Health Dashboard in a browser (`packages/dashboard`, ADR-009 — bundled with this package, not a separate install):
+
+```text
+http://127.0.0.1:8787/__metric-atlas/dashboard
+```
+
+Move it with `--dashboard-path` if that route collides with something on your own site:
+
+```bash
+metric-atlas serve ./dist --dashboard-path /my-dashboard
+```
+
 For a deployed server, store the JSON as a server secret, not in Git or in
 browser-facing `VITE_*` variables. If the host only supports string secrets:
 
@@ -44,7 +56,7 @@ base64 -i /secure/path/metric-atlas-reader.json | pbcopy
 Configure:
 
 ```bash
-METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+METRIC_ATLAS_GA4_PROPERTY_ID=123456789
 METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64=<PASTE_BASE64_VALUE>
 ```
 
@@ -58,7 +70,8 @@ metric-atlas serve ./dist --host 0.0.0.0 --port "$PORT"
 
 Runtime responsibilities:
 
-- serve built dashboard assets
+- serve the consumer's built site (`DIST_DIR` argument)
+- serve the bundled Analytics Health Dashboard (`packages/dashboard`) at a configurable path
 - expose `/__metric-atlas/api/*`
 - read GA4/LLM credentials from Node environment or `--env`
 - keep credentials out of the browser bundle, manifest, fixture, and localStorage
@@ -70,6 +83,7 @@ GET  /__metric-atlas/api/runtime-health
 GET  /__metric-atlas/api/manifest
 GET  /__metric-atlas/api/health
 POST /__metric-atlas/api/llm/generate
+GET  /__metric-atlas/dashboard/*   (default path, see --dashboard-path)
 ```
 
 `/llm/generate` calls an openai-compatible `/chat/completions` endpoint when `METRIC_ATLAS_LLM_API_KEY` or `OPENAI_API_KEY` is configured in the Node Runtime environment. It fails closed with `missing_llm_api_key` when no runtime key is present.

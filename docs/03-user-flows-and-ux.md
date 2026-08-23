@@ -8,7 +8,7 @@ Launcher 기능:
 
 - Overlay 켜기/끄기
 - 현재 화면에서 탐지된 이벤트 수
-- `/event-dashboard` 이동
+- Dashboard(`@metric-atlas/runtime`이 서빙, 기본 `/__metric-atlas/dashboard`, ADR-009)로 이동
 
 Launcher는 제품 UI를 가리지 않도록 최소 크기로 유지하고 설정으로 위치를 바꿀 수 있습니다.
 

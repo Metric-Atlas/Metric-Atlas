@@ -26,7 +26,7 @@ Metric Atlas는 React·Vite 프로젝트의 분석 이벤트를 **코드 위치�
 
 ### 2. Analytics Health Dashboard
 
-`/event-dashboard`의 첫 화면은 단순 이벤트 카운트가 아니라 **Code ↔ GA4 Health**입니다.
+Node Runtime이 `/__metric-atlas/dashboard`(변경 가능)에서 서빙하는 첫 화면은 단순 이벤트 카운트가 아니라 **Code ↔ GA4 Health**입니다.
 
 - 코드에는 있는데 GA4에서 관측되지 않는 이벤트
 - GA4에는 있는데 코드에서 발견되지 않는 이벤트
@@ -35,7 +35,7 @@ Metric Atlas는 React·Vite 프로젝트의 분석 이벤트를 **코드 위치�
 - 정상적으로 코드와 GA4가 연결된 이벤트
 - Data Quality Flag가 있어 판정에 주의가 필요한 이벤트
 
-이벤트 발생 수와 기간 비교는 Event Detail에서 제공합니다.
+이벤트 발생 수와 기간 비교는 Event Detail에서 제공합니다. Dashboard는 `@metric-atlas/runtime`에 내장되어 배포됩니다 — 아래 "Analytics Health Dashboard" 섹션 참고.
 
 ### 3. Natural Language Query
 
@@ -163,12 +163,13 @@ export default defineConfig({
         "**/*.stories.*",
       ],
       overlay: { enabled: true },
-      dashboard: { enabled: true, path: "/event-dashboard" },
     }),
     react(),
   ],
 });
 ```
+
+`@metric-atlas/vite`는 Event Overlay(코드 쪽 배지)만 담당합니다. `dashboard` 옵션은 없습니다 — Analytics Health Dashboard는 별개로 Node Runtime이 서빙합니다. 아래 "Analytics Health Dashboard" 섹션 참고.
 
 ## GA4 인증
 
@@ -189,7 +190,7 @@ chmod 600 ~/secure/metric-atlas-reader.json
 
 ```bash
 cat > .env.metric-atlas <<'EOF'
-METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+METRIC_ATLAS_GA4_PROPERTY_ID=123456789
 GOOGLE_APPLICATION_CREDENTIALS=/Users/YOUR_NAME/secure/metric-atlas-reader.json
 METRIC_ATLAS_GA4_HEALTH_WINDOW_DAYS=30
 METRIC_ATLAS_GA4_RECENT_WINDOW_HOURS=48
@@ -220,7 +221,7 @@ curl http://127.0.0.1:8787/__metric-atlas/api/health
 배포 환경이 Secret File을 지원하면 다음 값을 설정합니다.
 
 ```bash
-METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+METRIC_ATLAS_GA4_PROPERTY_ID=123456789
 GOOGLE_APPLICATION_CREDENTIALS=/secure/path/metric-atlas-reader.json
 ```
 
@@ -233,7 +234,7 @@ base64 -i ~/secure/metric-atlas-reader.json | pbcopy
 배포 플랫폼에 다음 Secret을 등록합니다.
 
 ```bash
-METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+METRIC_ATLAS_GA4_PROPERTY_ID=123456789
 METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64=<PASTE_BASE64_VALUE>
 ```
 
@@ -247,6 +248,28 @@ npx metric-atlas serve ./dist --host 0.0.0.0 --port "$PORT"
 
 서비스 계정은 대상 GA4 Property에 필요한 최소 읽기 권한으로 추가해야 합니다.
 GA4 인증 정보는 `VITE_*`, 브라우저 저장소, 소스 코드, 빌드 산출물, 로그에 넣지 않습니다.
+
+## Analytics Health Dashboard
+
+Dashboard는 별도로 설치하는 패키지도, Vite Plugin 옵션도 아닙니다 — `@metric-atlas/runtime`에 내장되어 있고, GA4 credential을 설정한 뒤(위 섹션) `metric-atlas serve`로 Runtime을 배포하면 함께 서빙됩니다. GA4 조회는 credential을 쥔 살아있는 서버가 필요해서, 정적 `vite build` 산출물만으로는 애초에 대시보드를 띄울 방법이 없습니다(`docs/adr/ADR-009-runtime-embedded-analytics-health-dashboard.md` 참고).
+
+```bash
+npx metric-atlas serve ./dist --env ./.env.metric-atlas --host 127.0.0.1 --port 8787
+```
+
+`http://127.0.0.1:8787/__metric-atlas/api/runtime-health`로 credential이 정상 로드됐는지 확인한 뒤, 대시보드를 엽니다:
+
+```text
+http://127.0.0.1:8787/__metric-atlas/dashboard
+```
+
+자기 사이트에 이미 그 경로가 있어서 충돌하면 옮길 수 있습니다:
+
+```bash
+npx metric-atlas serve ./dist --env ./.env.metric-atlas --dashboard-path /my-dashboard
+```
+
+별도 설치 단계나 Metric-Atlas가 운영하는 공유 대시보드 서비스는 없습니다 — 각 배포는 이 프로젝트의 나머지 보안 모델(`docs/09-security-and-secrets.md`)과 동일하게 자기 GA4 credential로 self-host됩니다. Runtime을 공개 URL로 배포하면 그 URL을 아는 누구나 대시보드를 볼 수 있습니다(credential 자체는 아니지만 이벤트명/카운트/GA4 관측 상태는 노출) — 필요하면 네트워크나 호스팅 플랫폼 레벨에서 접근을 제한하세요.
 
 ## 문서 읽기 순서
 

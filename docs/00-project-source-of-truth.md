@@ -40,6 +40,8 @@ Metric Atlas는 **이미 존재하는 프론트엔드 코드에서 분석 이벤
 
 Event Detail에서 발생 수와 기간 비교를 제공합니다.
 
+Dashboard는 별도 설치형 패키지가 아니라 `@metric-atlas/runtime`(`metric-atlas serve`)에 내장되어 제공됩니다. 소비자는 Runtime을 self-host하고 GA4 credential을 설정하면 기본 경로(`/__metric-atlas/dashboard`, `--dashboard-path`로 변경 가능)에서 바로 확인할 수 있습니다. ADR-009, DEC-061.
+
 ### 기능 3 — Natural Language Query
 원본 이벤트명과 GA4 결과를 자연어로 조회합니다. Core MVP Release Blocker는 아닙니다.
 
