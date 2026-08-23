@@ -95,6 +95,18 @@ export default function metricAtlas(
     );
   };
 
+  /**
+   * Dev uses the Vite middleware endpoint, while build uses the static manifest
+   * asset emitted by generateBundle().
+   */
+  const overlayManifestUrl = (): string => {
+    if (!config || config.command === "serve") {
+      return manifestEndpoint;
+    }
+
+    return `${config.base}${manifestFile.replace(/^\/+/, "")}`;
+  };
+
   const plugin: MetricAtlasPlugin = {
     name: "metric-atlas",
     enforce: "pre",
@@ -124,7 +136,7 @@ export default function metricAtlas(
       return [
         `import { mountMetricAtlasOverlay } from ${JSON.stringify(overlayModuleId)};`,
         "const mount = () => mountMetricAtlasOverlay({",
-        `  manifestUrl: ${JSON.stringify(manifestEndpoint)}`,
+        `  manifestUrl: ${JSON.stringify(overlayManifestUrl())}`,
         "});",
         'if (document.readyState !== "complete") {',
         '  window.addEventListener("load", mount, { once: true });',

@@ -80,6 +80,41 @@ describe("Metric Atlas Vite plugin", () => {
     );
   });
 
+  it("uses the dev manifest endpoint in serve and static manifest asset in build", async () => {
+    const root = path.resolve("fixture-project");
+
+    const devPlugin = metricAtlas({
+      buildId: "dev-overlay-url",
+      manifestEndpoint: "/__metric-atlas/dev/manifest",
+    });
+    await (devPlugin.configResolved as Function)({
+      root,
+      base: "/",
+      command: "serve",
+      logger: { info: vi.fn() },
+    });
+    const devOverlayModule = await (devPlugin.load as Function)(
+      "\0virtual:metric-atlas-overlay-entry",
+    );
+    expect(devOverlayModule).toContain(
+      'manifestUrl: "/__metric-atlas/dev/manifest"',
+    );
+
+    const buildPlugin = metricAtlas({ buildId: "build-overlay-url" });
+    await (buildPlugin.configResolved as Function)({
+      root,
+      base: "/",
+      command: "build",
+      logger: { info: vi.fn() },
+    });
+    const buildOverlayModule = await (buildPlugin.load as Function)(
+      "\0virtual:metric-atlas-overlay-entry",
+    );
+    expect(buildOverlayModule).toContain(
+      'manifestUrl: "/.metric-atlas/manifest.json"',
+    );
+  });
+
   it("emits the manifest and bundles the overlay in a real Vite build", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "metric-atlas-vite-"));
     temporaryDirectories.push(root);
