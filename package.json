@@ -1,6 +1,6 @@
 {
   "name": "@metric-atlas/vite",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Metric Atlas Vite plugin — standalone distribution (see docs/adr/ADR-008)",
   "type": "module",
   "main": "./index.js",
