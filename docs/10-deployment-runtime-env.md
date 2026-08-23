@@ -50,9 +50,12 @@ METRIC_ATLAS_ENABLED=true pnpm build
 ```bash
 metric-atlas serve ./dist
 metric-atlas serve ./dist --env ./.env.metric-atlas --port 8787
+metric-atlas serve ./dist --dashboard-path /my-dashboard
 ```
 
 `.env.metric-atlas`는 Node Runtime 실행자가 관리하는 파일입니다. 브라우저 bundle이나 `VITE_*` 환경변수로 GA4/LLM credential을 전달하지 않습니다. 예시는 `.env.metric-atlas.example`을 사용합니다.
+
+`--dashboard-path`(기본값 `/__metric-atlas/dashboard`)는 Analytics Health Dashboard(`packages/dashboard`, ADR-009)를 서빙하는 경로입니다. 소비자 사이트에 이미 그 경로가 있으면 변경하세요.
 
 ## 5. Runtime API
 

@@ -79,6 +79,7 @@ Phase 0 계약 v1 Freeze 전에 `docs/17-ga4-spike-plan.md`의 핵심 항목을 
 - Health Summary
 - Event Detail
 - 기간 비교
+- 배포: `packages/dashboard`로 UI를 추출해 `@metric-atlas/runtime`에 내장 서빙(ADR-009, DEC-061) — 소비자 설치형 패키지나 Vite Plugin 옵션이 아님
 
 ## Phase 4 — PR Analytics Change Report
 - Base/Head Scan
@@ -100,7 +101,8 @@ Phase 0 계약 v1 Freeze 전에 `docs/17-ga4-spike-plan.md`의 핵심 항목을 
 - CONTRIBUTING
 - Detector Extension Guide
 - Connector Extension Guide
-- SemVer / License 최종 확정
+- SemVer / License 최종 확정 — 완료(DEC-054, DEC-055)
+- npm registry publish — 완료(DEC-062). `contracts`/`detector`/`overlay`/`vite`/`runtime`/`cli`/`connector-sdk`/`connector-ga4` 8개 패키지가 `@metric-atlas/*` 스코프로 공개돼 있다. `docs/adr/ADR-008`의 `dist/vite-plugin` git-install 경로는 `main` 추적용 fallback으로만 유지.
 
 ## MVP Core 성공 기준
 

@@ -2,6 +2,7 @@ export {
   createRuntimeServer,
   loadEnvFile,
   serveRuntime,
+  DEFAULT_DASHBOARD_PATH,
   type RuntimeHealth,
   type RuntimeOptions,
   type RuntimeServer,

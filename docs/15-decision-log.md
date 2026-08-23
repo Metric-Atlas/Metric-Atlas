@@ -307,3 +307,25 @@ Status:
   1. **Wrapper 함수 지원(우선순위 높음)**: `docs/16` R-1(Wrapper coverage)이 이미 리스크로 등록했지만, 대응책으로 제시한 "Custom Detector 안내"는 실제로 구현되어 있지 않다 — `MetricAtlasViteOptions.detectors`는 `DetectorAdapterName`(닫힌 6개 목록)만 받고, 외부에서 커스텀 매처를 등록할 방법이 없다. 실무에서 `trackEvent()`류 wrapper로 SDK 호출을 감싸는 패턴이 매우 흔해서(중앙화된 analytics 헬퍼는 일반적인 관행) MVP의 "직접 SDK 호출만 커버" 전제가 실제 코드베이스의 상당 부분을 놓칠 가능성이 있다. 필요 작업: 프로젝트가 자신의 wrapper 패턴(함수명, 파라미터 위치)을 등록할 수 있는 Custom Detector Adapter Extension API 신설. B(성준) 담당 영역.
   2. **동적 이벤트명 열거(우선순위 낮음)**: `` `share_${platform}` ``처럼 이벤트명이 로컬에서 정의된 유한 union(`const PLATFORMS = [...] as const`)에서 오는 경우, 이론적으로는 TypeScript 타입을 통해 가능한 값을 모두 열거해 정적으로 확정할 수 있다. 다만 `packages/detector`는 현재 Babel AST 파싱만 하고 타입 체커를 쓰지 않아(`docs/04`가 이미 "TypeScript Compiler API when deeper analysis is required"로 확장 여지를 남겨둔 지점), 새 분석 파이프라인 추가가 필요하다. 값이 런타임에 무한히 달라질 수 있는 일반적인 동적 이벤트명(API 응답, 사용자 입력 등)은 어떤 정적 분석으로도 원천적으로 해결 불가능하며 이는 범위에서 제외한다.
 - 다음 단계: 두 항목 모두 Task Spec 작성 전까지는 착수하지 않는다. Wrapper 지원을 먼저 검토한다.
+
+## DEC-061 — Analytics Health Dashboard ships embedded in @metric-atlas/runtime
+- Date: 2026-08-24
+- Status: Accepted
+- Decision: Dashboard UI를 별도 설치형 소비자 패키지나 Vite Plugin 빌드 옵션이 아니라 `@metric-atlas/runtime`(`metric-atlas serve`)에 내장해 제공한다. ADR-009 참고.
+  - `apps/demo-react-vite`에만 존재하던 Dashboard UI(Overview/Events/Query view, EventCard/EventDetail, GTM route 표시, Custom Dimension gap 경고)를 재사용 가능한 `packages/dashboard` 패키지로 추출한다.
+  - `packages/runtime`가 빌드 시 그 정적 산출물을 포함하고, `packages/runtime/src/server.ts`가 설정 가능한 경로(기본 `/__metric-atlas/dashboard`)로 서빙한다. `packages/cli`에 `--dashboard-path` 플래그를 추가한다.
+  - 검토했던 대안 두 가지는 기각: (1) `dashboard.metric-atlas.site` 같은 공유 호스팅 서비스는 제3자 GA4 credential을 중앙에서 보관해야 해서 현재 self-hosted 보안 모델(`docs/09`, Risk Register R-11)과 "MVP엔 내장 인증 없음"(`DEC-011`)을 정면으로 뒤집는 SaaS급 스코프 변경이라 채택하지 않는다. (2) `METRIC_ATLAS_DASHBOARD_ENABLED=true` 같은 Vite Plugin 빌드 옵션은 `vite build` 산출물이 정적 파일이라 GA4를 실시간으로 조회할 서버가 없어서 프로덕션에서 원천적으로 동작할 수 없다.
+  - 소비자는 여전히 `@metric-atlas/runtime`을 자기 인프라에 self-host하고 자기 GA4 credential을 설정해야 한다(이건 GA4 조회 특성상 피할 수 없음) — 이 결정으로 없어지는 건 "대시보드 UI를 직접 만들거나 복붙해야 하는 부담"뿐이다.
+  - 공개 URL로 Runtime을 배포하면 Dashboard가 누구에게나 열람 가능해진다는 점은 기존 Runtime API 노출 리스크와 동일하며(R-11), 네트워크/배포 레벨에서 접근을 제한해야 한다.
+- A 제안, 이 세션에서 바로 구현 착수(대회 제출 일정).
+
+## DEC-062 — First npm registry publish: 8 @metric-atlas/* packages live
+- Date: 2026-08-24
+- Status: Accepted
+- Decision: `contracts`/`detector`/`overlay`/`vite`/`runtime`/`cli`/`connector-sdk`/`connector-ga4` 8개 패키지를 `@metric-atlas/*` 스코프로 npm registry에 처음 publish했다(모두 `0.1.0`). Phase 6("npm registry publish")를 닫는다.
+  - `packages/dashboard`는 `private: true`로 publish 대상에서 제외 — ADR-009대로 `@metric-atlas/runtime`에 내장되어 배포된다.
+  - `.github/workflows/publish-npm-packages.yml`(`workflow_dispatch` 전용, DEC-056 continuous/사람이 트리거)로 배포. `pnpm -r publish`가 `workspace:*` 의존성을 실제 버전으로 자동 치환해줘서, `@metric-atlas/vite`가 `contracts`/`detector`/`overlay`를 진짜 npm dependency로 선언해도 정상 동작함을 확인 — ADR-008의 esbuild inline 우회는 이제 git-install fallback 경로에서만 필요하다.
+  - Publish 시도 중 두 가지 실패를 겪고 고쳤다: (1) 첫 시도는 npm이 요구하는 2FA-bypass 토큰이 아니어서 403 실패 — Granular Access Token에 "Bypass two-factor authentication"을 켜서 해결. (2) 두번째 시도는 `--provenance`가 `package.json.repository.url`을 요구해서 422 실패 — 8개 패키지에 `repository` 필드 추가로 해결. 둘 다 아무것도 실제로 publish되기 전에 막혀서 부분 publish 같은 부작용은 없었다.
+  - 실제 배포 후 이 모노레포와 무관한 스크래치 프로젝트에서 `npm install @metric-atlas/vite`(Overlay 이벤트 탐지)와 `npm install @metric-atlas/cli`(`npx metric-atlas serve` → Dashboard까지) 둘 다 end-to-end로 검증했다.
+  - README/README.ko의 "Install in a user project" 섹션을 실제 npm install이 1순위가 되도록 갱신했다. `dist/vite-plugin` git-install은 다음 npm 버전보다 앞선 `main` 추적용 fallback으로만 남긴다(ADR-008 Update 참고).
+- A 진행.

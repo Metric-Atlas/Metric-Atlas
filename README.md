@@ -24,7 +24,7 @@ Turn on the Metric Atlas launcher in the deployed application and hover over a b
 
 ### 2. Analytics Health Dashboard
 
-The first view at `/event-dashboard` is **Code ↔ GA4 Health**, not a raw event-count table.
+The first view, served by the Node Runtime at `/__metric-atlas/dashboard` (configurable), is **Code ↔ GA4 Health**, not a raw event-count table.
 
 - Events present in code but not observed in GA4
 - Events observed in GA4 but not discovered in code
@@ -33,7 +33,7 @@ The first view at `/event-dashboard` is **Code ↔ GA4 Health**, not a raw event
 - Events connected successfully between code and GA4
 - Results that require caution because of Data Quality Flags
 
-Event Detail provides event counts and period comparisons.
+Event Detail provides event counts and period comparisons. The dashboard ships embedded in `@metric-atlas/runtime` — see [Analytics Health Dashboard](#analytics-health-dashboard).
 
 ### 3. Natural Language Query
 
@@ -105,41 +105,10 @@ The demo application shows supported and unsupported patterns together:
 
 ## Install in a user project
 
-This project has not published `@metric-atlas/vite` to npm yet (SemVer/registry release is planned for a later OSS phase). Until then, install the plugin from this repo's `dist/vite-plugin` branch, which carries a self-contained build with the internal `@metric-atlas/*` packages already bundled in (see `docs/adr/ADR-008-standalone-vite-plugin-distribution.md`):
+`@metric-atlas/vite` is published to npm.
 
 ```bash
-npm install "github:Metric-Atlas/Metric-Atlas#dist/vite-plugin"
-```
-
-```ts
-// vite.config.ts
-import { defineConfig, type PluginOption } from "vite";
-import react from "@vitejs/plugin-react";
-
-async function metricAtlasPlugin(): Promise<PluginOption[]> {
-  if (process.env.METRIC_ATLAS_ENABLED !== "true") return [];
-  const { default: metricAtlas } = await import("@metric-atlas/vite");
-  return [metricAtlas({ enabled: true, overlay: { enabled: true } })];
-}
-
-export default defineConfig(async () => ({
-  plugins: [...(await metricAtlasPlugin()), react()],
-}));
-```
-
-```bash
-METRIC_ATLAS_ENABLED=true npm run build
-```
-
-On a host like Vercel, set `METRIC_ATLAS_ENABLED=true` only on the Preview environment so production builds are unaffected. The dynamic `import()` above keeps the dependency optional even when the package isn't installed.
-
-The `dist/vite-plugin` branch is rebuilt automatically on every push to `main` that touches `packages/{contracts,detector,overlay,vite}` (see `.github/workflows/publish-vite-plugin-dist.yml`). Because it's a branch ref rather than a SemVer range, `npm update` won't pick up new commits automatically — re-run `npm install` on that branch ref, or pin a commit SHA (`#dist/vite-plugin@<sha>`) for reproducible installs.
-
-### Once this repo publishes to a registry
-
-```bash
-corepack pnpm add -D @metric-atlas/vite
-corepack pnpm add @metric-atlas/runtime
+npm install -D @metric-atlas/vite
 ```
 
 ```ts
@@ -161,12 +130,29 @@ export default defineConfig({
         "**/*.stories.*",
       ],
       overlay: { enabled: true },
-      dashboard: { enabled: true, path: "/event-dashboard" },
     }),
     react(),
   ],
 });
 ```
+
+```bash
+METRIC_ATLAS_ENABLED=true npm run build
+```
+
+On a host like Vercel, set `METRIC_ATLAS_ENABLED=true` only on the Preview environment so production builds are unaffected.
+
+`@metric-atlas/vite` only ever controls Event Overlay (code-side badges). It has no `dashboard` option — Analytics Health Dashboard is a separate concern, served by the Node Runtime; see [Analytics Health Dashboard](#analytics-health-dashboard) below.
+
+### Tracking `main` directly (advanced)
+
+Before the npm publish above existed, this repo maintained a `dist/vite-plugin` branch with a self-contained, bundled build for installing straight off Git (see `docs/adr/ADR-008-standalone-vite-plugin-distribution.md`). It's still rebuilt automatically on every push to `main` and still works, if you specifically want unreleased changes ahead of the next npm version:
+
+```bash
+npm install "github:Metric-Atlas/Metric-Atlas#dist/vite-plugin"
+```
+
+For normal use, prefer the npm install above — it gets you a real released version instead of whatever happens to be on `main`.
 
 ## GA4 authentication
 
@@ -187,7 +173,7 @@ Create a local Runtime env file:
 
 ```bash
 cat > .env.metric-atlas <<'EOF'
-METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+METRIC_ATLAS_GA4_PROPERTY_ID=123456789
 GOOGLE_APPLICATION_CREDENTIALS=/Users/YOUR_NAME/secure/metric-atlas-reader.json
 METRIC_ATLAS_GA4_HEALTH_WINDOW_DAYS=30
 METRIC_ATLAS_GA4_RECENT_WINDOW_HOURS=48
@@ -195,9 +181,10 @@ METRIC_ATLAS_CACHE_TTL_SECONDS=300
 EOF
 ```
 
-Build and serve the instrumented app:
+Install the Runtime CLI, then build and serve the instrumented app:
 
 ```bash
+npm install -D @metric-atlas/cli
 METRIC_ATLAS_ENABLED=true npm run build
 npx metric-atlas serve ./dist --env ./.env.metric-atlas --host 127.0.0.1 --port 8787
 ```
@@ -218,7 +205,7 @@ Do not commit `.env.metric-atlas`.
 If the host supports secret files, set:
 
 ```bash
-METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+METRIC_ATLAS_GA4_PROPERTY_ID=123456789
 GOOGLE_APPLICATION_CREDENTIALS=/secure/path/metric-atlas-reader.json
 ```
 
@@ -231,7 +218,7 @@ base64 -i ~/secure/metric-atlas-reader.json | pbcopy
 Then add these secrets in the deployment platform:
 
 ```bash
-METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+METRIC_ATLAS_GA4_PROPERTY_ID=123456789
 METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64=<PASTE_BASE64_VALUE>
 ```
 
@@ -245,6 +232,28 @@ npx metric-atlas serve ./dist --host 0.0.0.0 --port "$PORT"
 
 Add the service account to the target GA4 Property with the minimum required read permissions.
 Never put GA4 credentials in `VITE_*`, browser storage, source code, build output, or logs.
+
+## Analytics Health Dashboard
+
+The Dashboard is not a separate package to install and not a Vite plugin option — it ships embedded in `@metric-atlas/runtime` and is served by `metric-atlas serve` once the Runtime is deployed with GA4 credentials configured (previous section). This is deliberate: GA4 queries need a live server holding credentials, so a static `vite build` output can never host a working dashboard on its own (see `docs/adr/ADR-009-runtime-embedded-analytics-health-dashboard.md`).
+
+```bash
+npx metric-atlas serve ./dist --env ./.env.metric-atlas --host 127.0.0.1 --port 8787
+```
+
+Open `http://127.0.0.1:8787/__metric-atlas/api/runtime-health` to confirm credentials are loaded, then visit the dashboard:
+
+```text
+http://127.0.0.1:8787/__metric-atlas/dashboard
+```
+
+If that path collides with something on your own site, move it:
+
+```bash
+npx metric-atlas serve ./dist --env ./.env.metric-atlas --dashboard-path /my-dashboard
+```
+
+There is no separate installation step and no shared Metric-Atlas-hosted dashboard service — each deployment is self-hosted with its own GA4 credentials, matching the rest of this project's security model (`docs/09-security-and-secrets.md`). If you deploy the Runtime to a public URL, the dashboard is reachable by anyone who has that URL (it exposes event names/counts/GA4 observation state, not credentials) — restrict access at the network or hosting-platform layer if that matters for your deployment.
 
 ## Documentation reading order
 
