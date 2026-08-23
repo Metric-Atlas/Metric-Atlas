@@ -107,41 +107,10 @@ Demo 앱은 다음 지원·미지원 패턴을 한 화면에서 보여줍니다.
 
 ## 사용자 프로젝트 설치
 
-이 프로젝트는 아직 `@metric-atlas/vite`를 npm에 publish하지 않았습니다(SemVer/레지스트리 릴리스는 이후 OSS 단계에서 계획됨). 그 전까지는 이 레포의 `dist/vite-plugin` 브랜치에서 설치합니다 — 내부 `@metric-atlas/*` 패키지가 이미 번들된 독립 실행 가능한 빌드입니다(`docs/adr/ADR-008-standalone-vite-plugin-distribution.md` 참고):
+`@metric-atlas/vite`는 npm에 publish되어 있습니다.
 
 ```bash
-npm install "github:Metric-Atlas/Metric-Atlas#dist/vite-plugin"
-```
-
-```ts
-// vite.config.ts
-import { defineConfig, type PluginOption } from "vite";
-import react from "@vitejs/plugin-react";
-
-async function metricAtlasPlugin(): Promise<PluginOption[]> {
-  if (process.env.METRIC_ATLAS_ENABLED !== "true") return [];
-  const { default: metricAtlas } = await import("@metric-atlas/vite");
-  return [metricAtlas({ enabled: true, overlay: { enabled: true } })];
-}
-
-export default defineConfig(async () => ({
-  plugins: [...(await metricAtlasPlugin()), react()],
-}));
-```
-
-```bash
-METRIC_ATLAS_ENABLED=true npm run build
-```
-
-Vercel 같은 배포 환경에서는 `METRIC_ATLAS_ENABLED=true`를 Preview 환경변수로만 등록하면 production 빌드에는 영향이 없습니다. 위 동적 `import()`는 패키지가 설치되지 않은 경우에도 의존성을 선택적으로 유지합니다.
-
-`dist/vite-plugin` 브랜치는 `packages/{contracts,detector,overlay,vite}`를 건드리는 `main` 푸시마다 자동으로 재빌드됩니다(`.github/workflows/publish-vite-plugin-dist.yml` 참고). SemVer 범위가 아니라 브랜치 참조이므로 `npm update`로 새 커밋을 자동으로 받아오지 않습니다 — 해당 브랜치 참조로 `npm install`을 다시 실행하거나, 재현 가능한 설치를 원하면 커밋 SHA를 고정하세요(`#dist/vite-plugin@<sha>`).
-
-### 이 레포가 레지스트리에 publish된 이후
-
-```bash
-corepack pnpm add -D @metric-atlas/vite
-corepack pnpm add @metric-atlas/runtime
+npm install -D @metric-atlas/vite
 ```
 
 ```ts
@@ -169,7 +138,23 @@ export default defineConfig({
 });
 ```
 
+```bash
+METRIC_ATLAS_ENABLED=true npm run build
+```
+
+Vercel 같은 배포 환경에서는 `METRIC_ATLAS_ENABLED=true`를 Preview 환경변수로만 등록하면 production 빌드에는 영향이 없습니다.
+
 `@metric-atlas/vite`는 Event Overlay(코드 쪽 배지)만 담당합니다. `dashboard` 옵션은 없습니다 — Analytics Health Dashboard는 별개로 Node Runtime이 서빙합니다. 아래 "Analytics Health Dashboard" 섹션 참고.
+
+### `main`을 직접 추적하기 (고급)
+
+위 npm publish가 있기 전에는 이 레포가 `dist/vite-plugin` 브랜치를 유지해서 Git으로 직접 설치할 수 있는 번들 빌드를 제공했습니다(`docs/adr/ADR-008-standalone-vite-plugin-distribution.md` 참고). 이 브랜치는 지금도 `main` 푸시마다 자동으로 재빌드되고 계속 동작하며, 다음 npm 버전보다 앞선 미배포 변경사항이 필요한 경우에만 씁니다:
+
+```bash
+npm install "github:Metric-Atlas/Metric-Atlas#dist/vite-plugin"
+```
+
+일반적인 용도로는 위 npm install을 쓰세요 — `main`에 뭐가 올라와 있는지가 아니라 실제로 릴리스된 버전을 받게 됩니다.
 
 ## GA4 인증
 
@@ -198,9 +183,10 @@ METRIC_ATLAS_CACHE_TTL_SECONDS=300
 EOF
 ```
 
-Metric Atlas가 적용된 앱을 빌드하고 Runtime을 실행합니다.
+Runtime CLI를 설치하고, Metric Atlas가 적용된 앱을 빌드한 뒤 Runtime을 실행합니다.
 
 ```bash
+npm install -D @metric-atlas/cli
 METRIC_ATLAS_ENABLED=true npm run build
 npx metric-atlas serve ./dist --env ./.env.metric-atlas --host 127.0.0.1 --port 8787
 ```

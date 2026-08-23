@@ -318,3 +318,14 @@ Status:
   - 소비자는 여전히 `@metric-atlas/runtime`을 자기 인프라에 self-host하고 자기 GA4 credential을 설정해야 한다(이건 GA4 조회 특성상 피할 수 없음) — 이 결정으로 없어지는 건 "대시보드 UI를 직접 만들거나 복붙해야 하는 부담"뿐이다.
   - 공개 URL로 Runtime을 배포하면 Dashboard가 누구에게나 열람 가능해진다는 점은 기존 Runtime API 노출 리스크와 동일하며(R-11), 네트워크/배포 레벨에서 접근을 제한해야 한다.
 - A 제안, 이 세션에서 바로 구현 착수(대회 제출 일정).
+
+## DEC-062 — First npm registry publish: 8 @metric-atlas/* packages live
+- Date: 2026-08-24
+- Status: Accepted
+- Decision: `contracts`/`detector`/`overlay`/`vite`/`runtime`/`cli`/`connector-sdk`/`connector-ga4` 8개 패키지를 `@metric-atlas/*` 스코프로 npm registry에 처음 publish했다(모두 `0.1.0`). Phase 6("npm registry publish")를 닫는다.
+  - `packages/dashboard`는 `private: true`로 publish 대상에서 제외 — ADR-009대로 `@metric-atlas/runtime`에 내장되어 배포된다.
+  - `.github/workflows/publish-npm-packages.yml`(`workflow_dispatch` 전용, DEC-056 continuous/사람이 트리거)로 배포. `pnpm -r publish`가 `workspace:*` 의존성을 실제 버전으로 자동 치환해줘서, `@metric-atlas/vite`가 `contracts`/`detector`/`overlay`를 진짜 npm dependency로 선언해도 정상 동작함을 확인 — ADR-008의 esbuild inline 우회는 이제 git-install fallback 경로에서만 필요하다.
+  - Publish 시도 중 두 가지 실패를 겪고 고쳤다: (1) 첫 시도는 npm이 요구하는 2FA-bypass 토큰이 아니어서 403 실패 — Granular Access Token에 "Bypass two-factor authentication"을 켜서 해결. (2) 두번째 시도는 `--provenance`가 `package.json.repository.url`을 요구해서 422 실패 — 8개 패키지에 `repository` 필드 추가로 해결. 둘 다 아무것도 실제로 publish되기 전에 막혀서 부분 publish 같은 부작용은 없었다.
+  - 실제 배포 후 이 모노레포와 무관한 스크래치 프로젝트에서 `npm install @metric-atlas/vite`(Overlay 이벤트 탐지)와 `npm install @metric-atlas/cli`(`npx metric-atlas serve` → Dashboard까지) 둘 다 end-to-end로 검증했다.
+  - README/README.ko의 "Install in a user project" 섹션을 실제 npm install이 1순위가 되도록 갱신했다. `dist/vite-plugin` git-install은 다음 npm 버전보다 앞선 `main` 추적용 fallback으로만 남긴다(ADR-008 Update 참고).
+- A 진행.
