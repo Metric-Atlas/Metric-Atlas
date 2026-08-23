@@ -47,6 +47,9 @@ export function EventDetail({ row, onMakeQuery }: { row: JoinedRow | null; onMak
     const key = st?.state ?? (h ? "unknown" : "no_health");
     return { name, state: key, stateKo: VALUE_KO[key] ?? key, ...PARAM_STATE_COLOR[key] };
   });
+  const missingCustomDimensions = params
+    .filter((parameter) => parameter.state === "not_registered")
+    .map((parameter) => parameter.name);
 
   return (
     <section style={{ ...card, minWidth: 0 }}>
@@ -124,6 +127,22 @@ export function EventDetail({ row, onMakeQuery }: { row: JoinedRow | null; onMak
 
       <div style={{ marginTop: 16 }}>
         <div style={{ ...fieldLabel, fontSize: 10, marginBottom: 6 }}>PARAMETERS · GA4 등록 상태</div>
+        {missingCustomDimensions.length > 0 && (
+          <div
+            style={{
+              marginBottom: 8, padding: "10px 12px", borderRadius: 8, background: C.redBg,
+              border: `1px solid ${C.red}`, color: "#7f1d1d", fontSize: 12.2, lineHeight: 1.55,
+              overflowWrap: "anywhere"
+            }}
+          >
+            <div style={{ fontWeight: 800, marginBottom: 2 }}>GA4 Custom Dimension 등록 필요</div>
+            <div>
+              GA4 Admin → Custom definitions에서 Event scope로{" "}
+              <span style={{ fontFamily: mono }}>{missingCustomDimensions.join(", ")}</span>
+              {" "}파라미터를 등록해야 보고서에서 이 값들을 기준으로 분석할 수 있습니다.
+            </div>
+          </div>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           {params.length === 0 && <div style={{ fontSize: 12, color: C.faint }}>파라미터 없음</div>}
           {params.map((p) => (
