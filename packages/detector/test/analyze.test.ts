@@ -81,6 +81,36 @@ describe("analyzeSource", () => {
     );
   });
 
+  it("detects window-scoped dataLayer.push as a GTM event", () => {
+    const source = `
+      export function ContactForm() {
+        function handleSubmit(event) {
+          event.preventDefault();
+          window.dataLayer.push({ event: "lead_submit", form_type: "contact" });
+        }
+        return <form onSubmit={handleSubmit}>Lead</form>;
+      }
+    `;
+    const result = analyzeSource(source, {
+      file: "src/ContactForm.tsx",
+      buildId: "test-build",
+    });
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]).toMatchObject({
+      eventKey: "gtm:lead_submit",
+      emitter: "gtm",
+      analyticsProvider: "unknown",
+      providerDetectionConfidence: "provider_unknown",
+      parameters: ["form_type"],
+      overlaySupported: true,
+    });
+    expect(result.bindings[0]).toMatchObject({
+      eventKeys: ["gtm:lead_submit"],
+      element: { type: "form" },
+      bindingConfidence: "binding_exact",
+    });
+  });
+
   it("preserves an existing data-atlas-id and reports the collision", () => {
     const source = `
       export const Button = () => (
