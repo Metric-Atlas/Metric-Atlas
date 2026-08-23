@@ -4,6 +4,10 @@
 # demo app's runtime->fixture fallback fetches (`/__metric-atlas/api/manifest`,
 # `/__metric-atlas/api/health`) work without CORS/proxy configuration.
 #
+# The Runtime also serves the bundled Analytics Health Dashboard (ADR-009,
+# packages/dashboard) at /__metric-atlas/dashboard alongside the demo app's own
+# views at `/` — this image demonstrates both in one deployment.
+#
 # GA4 credentials are provided at container start via environment variables
 # (METRIC_ATLAS_GA4_PROPERTY_ID + METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64),
 # never baked into the image. See packages/runtime/README.md.
@@ -16,7 +20,7 @@ WORKDIR /app
 COPY . .
 
 RUN pnpm install --frozen-lockfile
-RUN pnpm build
+RUN pnpm build:runtime-dashboard
 RUN pnpm --filter @metric-atlas/demo-react-vite build
 
 FROM node:22-bookworm-slim
