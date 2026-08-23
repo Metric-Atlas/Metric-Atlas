@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 // packages/detector/dist/adapters.js
 import * as t from "@babel/types";
-var DEFAULT_DETECTOR_ADAPTERS = ["ga4", "gtm"];
+var DEFAULT_DETECTOR_ADAPTERS = ["ga4", "gtm", "mixpanel"];
 function identifierCall(path3, name) {
   return t.isIdentifier(path3.node.callee, { name });
 }
