@@ -13,6 +13,13 @@ function memberCall(path3, objectName, propertyName) {
   const callee = path3.node.callee;
   return t.isMemberExpression(callee) && !callee.computed && t.isIdentifier(callee.object, { name: objectName }) && t.isIdentifier(callee.property, { name: propertyName });
 }
+function nestedMemberCall(path3, rootNames, objectName, propertyName) {
+  const callee = path3.node.callee;
+  if (!t.isMemberExpression(callee) || callee.computed || !t.isIdentifier(callee.property, { name: propertyName }) || !t.isMemberExpression(callee.object) || callee.object.computed || !t.isIdentifier(callee.object.property, { name: objectName }) || !t.isIdentifier(callee.object.object)) {
+    return false;
+  }
+  return rootNames.includes(callee.object.object.name);
+}
 function expressionArgument(node) {
   return node && !t.isSpreadElement(node) && !t.isArgumentPlaceholder(node) ? node : null;
 }
@@ -61,7 +68,7 @@ var ga4Adapter = {
 var gtmAdapter = {
   name: "gtm",
   matchesSdkReference(path3) {
-    return memberCall(path3, "dataLayer", "push");
+    return memberCall(path3, "dataLayer", "push") || nestedMemberCall(path3, ["window", "globalThis"], "dataLayer", "push");
   },
   detect(path3) {
     if (!this.matchesSdkReference(path3))
