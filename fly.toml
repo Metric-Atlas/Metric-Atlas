@@ -1,0 +1,20 @@
+# Fly.io deploy config for the Metric Atlas demo app + Single Node Runtime.
+# See docs/10-deployment-runtime-env.md for the runtime model and GA4 setup.
+#
+# app name is assigned on first `fly launch` / `fly apps create` — update the
+# line below to match once you've picked one.
+app = "metric-atlas-demo"
+primary_region = "nrt"
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
