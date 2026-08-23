@@ -874,6 +874,12 @@ function metricAtlas(options = {}) {
       }
     });
   };
+  const overlayManifestUrl = () => {
+    if (!config || config.command === "serve") {
+      return manifestEndpoint;
+    }
+    return `${config.base}${manifestFile.replace(/^\/+/, "")}`;
+  };
   const plugin = {
     name: "metric-atlas",
     enforce: "pre",
@@ -899,7 +905,7 @@ function metricAtlas(options = {}) {
       return [
         `import { mountMetricAtlasOverlay } from ${JSON.stringify(overlayModuleId)};`,
         "const mount = () => mountMetricAtlasOverlay({",
-        `  manifestUrl: ${JSON.stringify(manifestEndpoint)}`,
+        `  manifestUrl: ${JSON.stringify(overlayManifestUrl())}`,
         "});",
         'if (document.readyState !== "complete") {',
         '  window.addEventListener("load", mount, { once: true });',
