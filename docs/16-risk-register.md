@@ -1,11 +1,11 @@
 # 16. Risk Register
 
 ## R-1 Wrapper coverage
-직접 SDK 호출만 공식 지원하므로 실제 프로젝트에서 누락될 수 있음.
+직접 SDK 호출만 공식 지원하므로 실제 프로젝트에서 누락될 수 있음. 실무에서 analytics 호출을 중앙화된 wrapper 함수로 감싸는 패턴이 흔해서, 이 갭이 실제 코드베이스 커버리지에 미치는 영향이 작지 않을 수 있음.
 
 대응:
-- SDK import + direct call 0 warning
-- Custom Detector 안내
+- SDK import + direct call 0 warning (구현됨, `POSSIBLE_WRAPPER_USAGE`)
+- Custom Detector 안내 (**미구현** — `MetricAtlasViteOptions.detectors`는 고정 6개 어댑터만 선택 가능하고 외부 커스텀 매처 등록 API가 없음. DEC-060 Roadmap note에 Extension API 신설 필요성 기록, 착수 전)
 - 지원 범위 명시
 
 ## R-2 Custom Component overlay

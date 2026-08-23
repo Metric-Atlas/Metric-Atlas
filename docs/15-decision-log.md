@@ -178,7 +178,8 @@ Status:
 
 ## DEC-037 — Non-GA4/GTM detector adapters default to opt-in
 - Date: 2026-08-18
-- Status: Accepted
+- Status: Superseded
+- Superseded by: DEC-060 (mixpanel only; meta/posthog/amplitude 부분은 그대로 유효)
 - Decision: Mixpanel/Meta/PostHog/Amplitude 어댑터는 기본 비활성화이며 Vite Plugin Config로 명시적으로 켜야 한다. MVP 공식 지원은 GA4/GTM. ADR-002.
 
 ## DEC-038 — Manifest summaries.analyticsProviders includes "unknown"
@@ -292,3 +293,17 @@ Status:
 - Date: 2026-08-21
 - Status: Accepted
 - Decision: 2026년 오픈소스 개발자대회 운영규정 제8조⑤⑥(활용한 오픈소스 라이브러리·프레임워크의 출처·라이선스 명시 의무)을 충족하기 위해 `THIRD-PARTY-NOTICES.md`/`THIRD-PARTY-NOTICES.ko.md`를 추가한다. 전체 워크스페이스 의존성 그래프(`pnpm licenses list`)를 라이선스별로 정리했으며, GPL/AGPL 등 MIT와 충돌하는 Copyleft 라이선스는 없음을 확인했다. 재생성 방법과 스캔 범위를 문서 상단에 명시한다. FOSSA 등 외부 SaaS 스캐너는 계정 생성이 필요해 채택하지 않았고, 저장소 내 정적 파일로 공개 의무를 충족한다.
+
+## DEC-060 — Mixpanel promoted from opt-in to an MVP detector default
+- Date: 2026-08-24
+- Status: Accepted
+- Supersedes: DEC-037 (mixpanel 부분만; meta/posthog/amplitude는 계속 opt-in)
+- Decision: `DEFAULT_DETECTOR_ADAPTERS`를 `["ga4", "gtm"]`에서 `["ga4", "gtm", "mixpanel"]`로 변경한다. Mixpanel 매처(`mixpanel.track(...)`, 객체명 정확히 일치 필요)는 false positive 위험이 낮고, Metric-Atlas 자체 레퍼런스 사이트(Metric-Atlas-homepage)가 실제로 Mixpanel을 사용하고 있어 대표 사용 사례가 있다. Meta/PostHog/Amplitude는 이 저장소 어디에도 실사용 예시가 없어 opt-in으로 유지한다. 이 변경으로 소비자 측 코드 수정 없이(플러그인 옵션 변경만으로) `@metric-atlas/vite`를 쓰는 모든 프로젝트에 적용된다 — Metric-Atlas-homepage가 별도로 `detectors: [...]`를 지정할 필요가 없어진다. `packages/detector/test/analyze.test.ts`, `packages/vite/test/plugin.test.ts`, `packages/cli/test/cli.test.ts`의 기존 "non-MVP adapter는 opt-in 전까지 비활성" 테스트는 예시를 mixpanel → posthog로 교체해 opt-in 정책 자체는 계속 검증한다. A 제안.
+
+## Roadmap note — Custom Detector Adapter 확장 & 동적 이벤트명 열거 (미착수)
+- Date: 2026-08-24
+- Status: Accepted (as backlog, not scheduled)
+- Decision: 두 가지 탐지 갭을 확장 로드맵으로 명시적으로 기록한다. 둘 다 지금 당장 착수하지 않는다.
+  1. **Wrapper 함수 지원(우선순위 높음)**: `docs/16` R-1(Wrapper coverage)이 이미 리스크로 등록했지만, 대응책으로 제시한 "Custom Detector 안내"는 실제로 구현되어 있지 않다 — `MetricAtlasViteOptions.detectors`는 `DetectorAdapterName`(닫힌 6개 목록)만 받고, 외부에서 커스텀 매처를 등록할 방법이 없다. 실무에서 `trackEvent()`류 wrapper로 SDK 호출을 감싸는 패턴이 매우 흔해서(중앙화된 analytics 헬퍼는 일반적인 관행) MVP의 "직접 SDK 호출만 커버" 전제가 실제 코드베이스의 상당 부분을 놓칠 가능성이 있다. 필요 작업: 프로젝트가 자신의 wrapper 패턴(함수명, 파라미터 위치)을 등록할 수 있는 Custom Detector Adapter Extension API 신설. B(성준) 담당 영역.
+  2. **동적 이벤트명 열거(우선순위 낮음)**: `` `share_${platform}` ``처럼 이벤트명이 로컬에서 정의된 유한 union(`const PLATFORMS = [...] as const`)에서 오는 경우, 이론적으로는 TypeScript 타입을 통해 가능한 값을 모두 열거해 정적으로 확정할 수 있다. 다만 `packages/detector`는 현재 Babel AST 파싱만 하고 타입 체커를 쓰지 않아(`docs/04`가 이미 "TypeScript Compiler API when deeper analysis is required"로 확장 여지를 남겨둔 지점), 새 분석 파이프라인 추가가 필요하다. 값이 런타임에 무한히 달라질 수 있는 일반적인 동적 이벤트명(API 응답, 사용자 입력 등)은 어떤 정적 분석으로도 원천적으로 해결 불가능하며 이는 범위에서 제외한다.
+- 다음 단계: 두 항목 모두 Task Spec 작성 전까지는 착수하지 않는다. Wrapper 지원을 먼저 검토한다.

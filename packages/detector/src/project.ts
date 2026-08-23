@@ -29,7 +29,7 @@ export interface ScanProjectOptions {
   exclude?: string[];
   buildId?: string;
   generatedAt?: string;
-  /** DEC-037: defaults to GA4/GTM; other adapters require explicit opt-in. */
+  /** DEC-037/DEC-060: defaults to GA4/GTM/Mixpanel; meta/posthog/amplitude require explicit opt-in. */
   detectors?: DetectorAdapterName[];
 }
 

@@ -50,7 +50,8 @@ describe("Metric Atlas Vite plugin", () => {
 
   it("enables non-MVP detectors only through explicit plugin config", async () => {
     const root = path.resolve("fixture-project");
-    const source = `export const App = () => <button onClick={() => mixpanel.track("mix_open")}>Open</button>;`;
+    // posthog stays opt-in post-DEC-060 (only mixpanel joined the ga4/gtm default).
+    const source = `export const App = () => <button onClick={() => posthog.capture("posthog_open")}>Open</button>;`;
     const defaultPlugin = metricAtlas({ buildId: "default-detectors" });
     await (defaultPlugin.configResolved as Function)({ root, logger: { info: vi.fn() } });
     await (defaultPlugin.buildStart as Function).call({});
@@ -64,7 +65,7 @@ describe("Metric Atlas Vite plugin", () => {
 
     const optInPlugin = metricAtlas({
       buildId: "opt-in-detectors",
-      detectors: ["ga4", "gtm", "mixpanel"],
+      detectors: ["ga4", "gtm", "posthog"],
     });
     await (optInPlugin.configResolved as Function)({ root, logger: { info: vi.fn() } });
     await (optInPlugin.buildStart as Function).call({});
@@ -76,7 +77,7 @@ describe("Metric Atlas Vite plugin", () => {
     );
     expect(transformed.code).toContain("data-atlas-id");
     expect(optInPlugin.api.getManifest().events[0]?.eventKey).toBe(
-      "mixpanel:mix_open",
+      "posthog:posthog_open",
     );
   });
 

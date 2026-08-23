@@ -59,9 +59,10 @@ describe("metric-atlas CLI", () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "metric-atlas-cli-"));
     temporaryDirectories.push(root);
     await mkdir(path.join(root, "src"));
+    // posthog stays opt-in post-DEC-060 (only mixpanel joined the ga4/gtm default).
     await writeFile(
-      path.join(root, "src", "Mixpanel.tsx"),
-      `export const Button = () => <button onClick={() => mixpanel.track("mix_click")}>Mix</button>;`,
+      path.join(root, "src", "Posthog.tsx"),
+      `export const Button = () => <button onClick={() => posthog.capture("posthog_click")}>Post</button>;`,
     );
 
     await execute(process.execPath, [
@@ -83,14 +84,14 @@ describe("metric-atlas CLI", () => {
       "--root",
       root,
       "--detectors",
-      "ga4,gtm,mixpanel",
+      "ga4,gtm,posthog",
       "--output",
       "opt-in.json",
     ]);
     const optInManifest = JSON.parse(
       await readFile(path.join(root, "opt-in.json"), "utf8"),
     );
-    expect(optInManifest.events[0]?.eventKey).toBe("mixpanel:mix_click");
+    expect(optInManifest.events[0]?.eventKey).toBe("posthog:posthog_click");
   });
 
   it("creates a Base/Head PR report directly from Git refs", async () => {

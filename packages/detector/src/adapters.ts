@@ -28,7 +28,7 @@ export type DetectorAdapterName =
   | "posthog"
   | "amplitude";
 
-export const DEFAULT_DETECTOR_ADAPTERS = ["ga4", "gtm"] as const satisfies readonly DetectorAdapterName[];
+export const DEFAULT_DETECTOR_ADAPTERS = ["ga4", "gtm", "mixpanel"] as const satisfies readonly DetectorAdapterName[];
 
 function identifierCall(path: NodePath<t.CallExpression>, name: string): boolean {
   return t.isIdentifier(path.node.callee, { name });
@@ -214,7 +214,7 @@ export const detectorAdaptersByName: Readonly<
   amplitude: memberEventAdapter("amplitude", "track", "amplitude", "amplitude"),
 };
 
-/** DEC-037: official MVP detection defaults to GA4/GTM only. */
+/** DEC-037/DEC-060: official MVP detection defaults to GA4/GTM/Mixpanel; meta/posthog/amplitude remain opt-in. */
 export const defaultDetectorAdapters: readonly DetectorAdapter[] =
   detectorAdaptersFor(DEFAULT_DETECTOR_ADAPTERS);
 
