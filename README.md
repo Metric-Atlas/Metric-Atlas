@@ -170,15 +170,81 @@ export default defineConfig({
 
 ## GA4 authentication
 
-Use environment variables or a Secret Manager in production.
+Analytics Health requires the Node Runtime. The browser never calls GA4 directly.
+Set GA4 credentials in the Runtime environment, then start the CLI server.
 
-Recommended precedence:
+### Local Runtime
 
-1. `GOOGLE_APPLICATION_CREDENTIALS`
-2. `METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64`
-3. Runtime memory input only when `METRIC_ATLAS_MODE=internal` and temporary input is explicitly allowed
+Keep the service account JSON outside the repository.
+
+```bash
+mkdir -p ~/secure
+mv ~/Downloads/service-account.json ~/secure/metric-atlas-reader.json
+chmod 600 ~/secure/metric-atlas-reader.json
+```
+
+Create a local Runtime env file:
+
+```bash
+cat > .env.metric-atlas <<'EOF'
+METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+GOOGLE_APPLICATION_CREDENTIALS=/Users/YOUR_NAME/secure/metric-atlas-reader.json
+METRIC_ATLAS_GA4_HEALTH_WINDOW_DAYS=30
+METRIC_ATLAS_GA4_RECENT_WINDOW_HOURS=48
+METRIC_ATLAS_CACHE_TTL_SECONDS=300
+EOF
+```
+
+Build and serve the instrumented app:
+
+```bash
+METRIC_ATLAS_ENABLED=true npm run build
+npx metric-atlas serve ./dist --env ./.env.metric-atlas --host 127.0.0.1 --port 8787
+```
+
+Check the Runtime APIs:
+
+```bash
+curl http://127.0.0.1:8787/__metric-atlas/api/runtime-health
+curl http://127.0.0.1:8787/__metric-atlas/api/manifest
+curl http://127.0.0.1:8787/__metric-atlas/api/health
+```
+
+### Deployed Runtime
+
+In production, configure the same values with the hosting provider's Secret or Environment Variable CLI.
+Do not commit `.env.metric-atlas`.
+
+If the host supports secret files, set:
+
+```bash
+METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+GOOGLE_APPLICATION_CREDENTIALS=/secure/path/metric-atlas-reader.json
+```
+
+If the host supports only environment variables, store the JSON as base64:
+
+```bash
+base64 -i ~/secure/metric-atlas-reader.json | pbcopy
+```
+
+Then add these secrets in the deployment platform:
+
+```bash
+METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64=<PASTE_BASE64_VALUE>
+```
+
+The server start command should restore the key before running the Runtime:
+
+```bash
+echo "$METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64" | base64 -d > /tmp/metric-atlas-ga4.json
+export GOOGLE_APPLICATION_CREDENTIALS=/tmp/metric-atlas-ga4.json
+npx metric-atlas serve ./dist --host 0.0.0.0 --port "$PORT"
+```
 
 Add the service account to the target GA4 Property with the minimum required read permissions.
+Never put GA4 credentials in `VITE_*`, browser storage, source code, build output, or logs.
 
 ## Documentation reading order
 
