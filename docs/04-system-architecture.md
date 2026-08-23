@@ -25,6 +25,8 @@ React + Vite Source
         └─ Rate / Concurrency Guard
 ```
 
+Dashboard / Search UI는 `packages/dashboard`로 패키징되어 Single Node Runtime(`@metric-atlas/runtime`)이 정적 자산으로 내장 서빙합니다 — 소비자가 별도로 설치하거나 직접 만들 필요가 없습니다(ADR-009, DEC-061).
+
 ## 2. Producer / Consumer Map
 
 | Artifact / Contract | Primary Producer | Integrator | Consumers | Phase 0 Mock |
