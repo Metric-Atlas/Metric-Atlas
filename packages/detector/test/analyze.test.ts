@@ -141,7 +141,10 @@ describe("analyzeSource", () => {
       file: "src/Actions.tsx",
       buildId: "test-build",
     });
-    expect(defaultResult.events).toEqual([]);
+    // DEC-060: mixpanel joined ga4/gtm as an MVP default; meta/posthog/amplitude stay opt-in.
+    expect(defaultResult.events.map((event) => event.eventKey)).toEqual([
+      "mixpanel:mix_click",
+    ]);
 
     const result = analyzeSource(source, {
       file: "src/Actions.tsx",

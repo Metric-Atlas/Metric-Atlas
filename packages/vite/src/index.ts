@@ -27,7 +27,7 @@ export interface MetricAtlasViteOptions {
   manifestFile?: string;
   manifestEndpoint?: string;
   buildId?: string;
-  /** DEC-037: defaults to ["ga4", "gtm"]. */
+  /** DEC-037/DEC-060: defaults to ["ga4", "gtm", "mixpanel"]. */
   detectors?: DetectorAdapterName[];
   overlay?: {
     enabled?: boolean;
