@@ -26,6 +26,9 @@
       "path": "packages/connector-ga4"
     },
     {
+      "path": "packages/dashboard"
+    },
+    {
       "path": "apps/demo-react-vite"
     }
   ]

@@ -22,5 +22,8 @@
     "@metric-atlas/connector-ga4": "workspace:*",
     "@metric-atlas/connector-sdk": "workspace:*",
     "@metric-atlas/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@metric-atlas/dashboard": "workspace:*"
   }
 }

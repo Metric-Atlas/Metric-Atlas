@@ -138,7 +138,14 @@ async function runServe(positionals: string[], values: Map<string, string[]>): P
   const envFile = first(values, "env");
   const host = first(values, "host");
   const port = optionalPort(first(values, "port"));
-  const options = { root, ...(envFile ? { envFile } : {}), ...(host ? { host } : {}), ...(port ? { port } : {}) };
+  const dashboardPath = first(values, "dashboard-path");
+  const options = {
+    root,
+    ...(envFile ? { envFile } : {}),
+    ...(host ? { host } : {}),
+    ...(port ? { port } : {}),
+    ...(dashboardPath ? { dashboardPath } : {}),
+  };
   const runtime = await serveRuntime(options);
   process.stderr.write(
     `[metric-atlas] serving ${root} at http://${runtime.host}:${runtime.port}\n`,
@@ -243,10 +250,11 @@ Usage:
   metric-atlas scan [--root DIR] [--include GLOB] [--exclude GLOB] [--detectors ga4,gtm,...] [--build-id ID] [--output FILE | --stdout]
   metric-atlas diff --base FILE --head FILE [--format markdown|json] [--output FILE]
   metric-atlas report --base-ref REF --head-ref REF [--root DIR] [--detectors ga4,gtm,...] [--format markdown|json] [--output FILE] [--manifest-dir DIR] [--fail-on-parse-error]
-  metric-atlas serve [DIST_DIR] [--host HOST] [--port PORT] [--env FILE]
+  metric-atlas serve [DIST_DIR] [--host HOST] [--port PORT] [--env FILE] [--dashboard-path PATH]
 
 The scanner reads source files and writes only the requested manifest output. It never modifies source files.
-The local runtime serves built assets and /__metric-atlas/api/* without exposing credentials to the browser bundle.
+The local runtime serves built assets, /__metric-atlas/api/*, and the bundled Analytics Health Dashboard
+(default --dashboard-path /__metric-atlas/dashboard, ADR-009) without exposing credentials to the browser bundle.
 `;
 }
 

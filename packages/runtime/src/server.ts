@@ -2,17 +2,23 @@ import { createReadStream } from "node:fs";
 import { access, readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   createLiveHealthProvider,
   HealthLiveError,
   type LiveHealthProvider,
 } from "./health-live.js";
 
+/** ADR-009: Analytics Health Dashboard (packages/dashboard) default mount path. */
+export const DEFAULT_DASHBOARD_PATH = "/__metric-atlas/dashboard";
+
 export interface RuntimeOptions {
   root: string;
   envFile?: string;
   host?: string;
   port?: number;
+  /** ADR-009: path the bundled Analytics Health Dashboard is served from. Defaults to "/__metric-atlas/dashboard". */
+  dashboardPath?: string;
   /**
    * C-003: 라이브 GA4 Health provider. undefined면 process.env로 자동 구성
    * (GA4 미설정 시 자동으로 비활성), null이면 명시적으로 정적 파일만 서빙.
@@ -42,6 +48,7 @@ interface LoadedConfig {
   root: string;
   host: string;
   port: number;
+  dashboardPath: string;
 }
 
 export async function serveRuntime(options: RuntimeOptions): Promise<RuntimeServer> {
@@ -56,7 +63,10 @@ export async function serveRuntime(options: RuntimeOptions): Promise<RuntimeServ
           env: process.env,
           loadManifest: () => loadManifestArtifact(config.root),
         });
-  const server = createRuntimeServer(config.root, { healthProvider });
+  const server = createRuntimeServer(config.root, {
+    healthProvider,
+    dashboardPath: config.dashboardPath,
+  });
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
@@ -80,13 +90,23 @@ export async function serveRuntime(options: RuntimeOptions): Promise<RuntimeServ
 
 export interface RuntimeServerDeps {
   healthProvider?: LiveHealthProvider | null;
+  /** ADR-009: defaults to DEFAULT_DASHBOARD_PATH. */
+  dashboardPath?: string;
+  /** Test-only seam; defaults to the dashboard assets bundled next to this compiled file. */
+  dashboardAssetsDir?: string;
 }
 
 export function createRuntimeServer(root: string, deps: RuntimeServerDeps = {}) {
   const resolvedRoot = path.resolve(root);
+  const dashboardPath = normalizeDashboardPath(deps.dashboardPath ?? DEFAULT_DASHBOARD_PATH);
+  const dashboardAssetsDir = deps.dashboardAssetsDir ?? resolveDashboardAssetsDir();
   return createServer(async (request, response) => {
     try {
-      await routeRequest(request, response, resolvedRoot, deps);
+      await routeRequest(request, response, resolvedRoot, {
+        ...deps,
+        dashboardPath,
+        dashboardAssetsDir,
+      });
     } catch (error) {
       sendJson(response, 500, {
         error: {
@@ -137,6 +157,21 @@ async function routeRequest(
 
   if (url.pathname === "/__metric-atlas/api/llm/generate" && request.method === "POST") {
     await generateLlmResponse(request, response);
+    return;
+  }
+
+  const dashboardPath = deps.dashboardPath ?? DEFAULT_DASHBOARD_PATH;
+  if (
+    (request.method === "GET" || request.method === "HEAD") &&
+    (url.pathname === dashboardPath || url.pathname.startsWith(`${dashboardPath}/`))
+  ) {
+    await sendDashboardAsset(
+      response,
+      deps.dashboardAssetsDir ?? resolveDashboardAssetsDir(),
+      dashboardPath,
+      url.pathname,
+      request.method === "HEAD",
+    );
     return;
   }
 
@@ -295,7 +330,28 @@ function resolveConfig(options: RuntimeOptions): LoadedConfig {
     root: path.resolve(options.root),
     host: options.host ?? process.env.METRIC_ATLAS_RUNTIME_HOST ?? "127.0.0.1",
     port: options.port ?? parsePort(process.env.METRIC_ATLAS_RUNTIME_PORT) ?? 8787,
+    dashboardPath: normalizeDashboardPath(
+      options.dashboardPath ?? process.env.METRIC_ATLAS_DASHBOARD_PATH ?? DEFAULT_DASHBOARD_PATH,
+    ),
   };
+}
+
+function normalizeDashboardPath(value: string): string {
+  const trimmed = value.trim().replace(/\/+$/, "");
+  const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  if (withLeadingSlash === "") {
+    throw new Error("--dashboard-path cannot be empty");
+  }
+  return withLeadingSlash;
+}
+
+/**
+ * ADR-009: the Analytics Health Dashboard (packages/dashboard) ships bundled next to
+ * this compiled file at build time (see scripts/embed-dashboard-in-runtime.mjs), the
+ * same vendored-sibling-file pattern ADR-008 uses for the overlay module.
+ */
+function resolveDashboardAssetsDir(): string {
+  return fileURLToPath(new URL("./dashboard", import.meta.url));
 }
 
 function runtimeHealth(root: string): RuntimeHealth {
@@ -418,6 +474,30 @@ async function sendStaticAsset(
     return;
   }
   createReadStream(selectedFile).pipe(response);
+}
+
+/** ADR-009: serves packages/dashboard's bundled static assets from under `dashboardPath`. */
+async function sendDashboardAsset(
+  response: ServerResponse,
+  dashboardAssetsDir: string,
+  dashboardPath: string,
+  requestPath: string,
+  headOnly: boolean,
+): Promise<void> {
+  if (!(await exists(dashboardAssetsDir))) {
+    sendJson(response, 404, {
+      error: {
+        code: "dashboard_not_bundled",
+        message:
+          "Analytics Health Dashboard assets are not present in this @metric-atlas/runtime install. " +
+          "Rebuild with the dashboard assets embedded (scripts/embed-dashboard-in-runtime.mjs) or " +
+          "reinstall a version of @metric-atlas/runtime that includes them.",
+      },
+    });
+    return;
+  }
+  const relativeRequest = requestPath.slice(dashboardPath.length) || "/";
+  await sendStaticAsset(response, dashboardAssetsDir, relativeRequest, headOnly);
 }
 
 function safeAssetPath(root: string, requestPath: string): string {
