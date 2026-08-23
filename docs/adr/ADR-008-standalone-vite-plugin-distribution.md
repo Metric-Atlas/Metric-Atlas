@@ -2,8 +2,10 @@
 
 - ID: ADR-008
 - Date: 2026-08-20
-- Status: Accepted
+- Status: Accepted (superseded as the primary install path — see Update below)
 - Author: Member A (가현)
+
+**Update (2026-08-24):** `@metric-atlas/vite` (and `contracts`/`detector`/`overlay`/`runtime`/`cli`/`connector-sdk`/`connector-ga4`) are now published to the npm registry — see `docs/15-decision-log.md` DEC-062. The `dist/vite-plugin` branch and this ADR's esbuild-inlining mechanism still exist and still work, but are no longer the recommended install path; `README.md` now leads with the real `npm install @metric-atlas/vite`. This ADR is kept for the historical record of why `bundledDependencies` doesn't work in this workspace, and the `dist/vite-plugin` branch is kept as a fallback for tracking unreleased `main` changes ahead of the next npm version.
 
 ## Problem
 

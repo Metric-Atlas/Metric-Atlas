@@ -105,41 +105,10 @@ The demo application shows supported and unsupported patterns together:
 
 ## Install in a user project
 
-This project has not published `@metric-atlas/vite` to npm yet (SemVer/registry release is planned for a later OSS phase). Until then, install the plugin from this repo's `dist/vite-plugin` branch, which carries a self-contained build with the internal `@metric-atlas/*` packages already bundled in (see `docs/adr/ADR-008-standalone-vite-plugin-distribution.md`):
+`@metric-atlas/vite` is published to npm.
 
 ```bash
-npm install "github:Metric-Atlas/Metric-Atlas#dist/vite-plugin"
-```
-
-```ts
-// vite.config.ts
-import { defineConfig, type PluginOption } from "vite";
-import react from "@vitejs/plugin-react";
-
-async function metricAtlasPlugin(): Promise<PluginOption[]> {
-  if (process.env.METRIC_ATLAS_ENABLED !== "true") return [];
-  const { default: metricAtlas } = await import("@metric-atlas/vite");
-  return [metricAtlas({ enabled: true, overlay: { enabled: true } })];
-}
-
-export default defineConfig(async () => ({
-  plugins: [...(await metricAtlasPlugin()), react()],
-}));
-```
-
-```bash
-METRIC_ATLAS_ENABLED=true npm run build
-```
-
-On a host like Vercel, set `METRIC_ATLAS_ENABLED=true` only on the Preview environment so production builds are unaffected. The dynamic `import()` above keeps the dependency optional even when the package isn't installed.
-
-The `dist/vite-plugin` branch is rebuilt automatically on every push to `main` that touches `packages/{contracts,detector,overlay,vite}` (see `.github/workflows/publish-vite-plugin-dist.yml`). Because it's a branch ref rather than a SemVer range, `npm update` won't pick up new commits automatically — re-run `npm install` on that branch ref, or pin a commit SHA (`#dist/vite-plugin@<sha>`) for reproducible installs.
-
-### Once this repo publishes to a registry
-
-```bash
-corepack pnpm add -D @metric-atlas/vite
-corepack pnpm add @metric-atlas/runtime
+npm install -D @metric-atlas/vite
 ```
 
 ```ts
@@ -167,7 +136,23 @@ export default defineConfig({
 });
 ```
 
+```bash
+METRIC_ATLAS_ENABLED=true npm run build
+```
+
+On a host like Vercel, set `METRIC_ATLAS_ENABLED=true` only on the Preview environment so production builds are unaffected.
+
 `@metric-atlas/vite` only ever controls Event Overlay (code-side badges). It has no `dashboard` option — Analytics Health Dashboard is a separate concern, served by the Node Runtime; see [Analytics Health Dashboard](#analytics-health-dashboard) below.
+
+### Tracking `main` directly (advanced)
+
+Before the npm publish above existed, this repo maintained a `dist/vite-plugin` branch with a self-contained, bundled build for installing straight off Git (see `docs/adr/ADR-008-standalone-vite-plugin-distribution.md`). It's still rebuilt automatically on every push to `main` and still works, if you specifically want unreleased changes ahead of the next npm version:
+
+```bash
+npm install "github:Metric-Atlas/Metric-Atlas#dist/vite-plugin"
+```
+
+For normal use, prefer the npm install above — it gets you a real released version instead of whatever happens to be on `main`.
 
 ## GA4 authentication
 
@@ -196,9 +181,10 @@ METRIC_ATLAS_CACHE_TTL_SECONDS=300
 EOF
 ```
 
-Build and serve the instrumented app:
+Install the Runtime CLI, then build and serve the instrumented app:
 
 ```bash
+npm install -D @metric-atlas/cli
 METRIC_ATLAS_ENABLED=true npm run build
 npx metric-atlas serve ./dist --env ./.env.metric-atlas --host 127.0.0.1 --port 8787
 ```
