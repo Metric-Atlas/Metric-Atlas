@@ -1,0 +1,60 @@
+{
+  "exportFormatVersion": 2,
+  "containerVersion": {
+    "container": {
+      "publicId": "GTM-METRICATLAS"
+    },
+    "tag": [
+      {
+        "tagId": "10",
+        "name": "GA4 Event - lead_submit",
+        "type": "gaawe",
+        "parameter": [
+          { "key": "eventName", "value": "lead_submit" },
+          { "key": "measurementId", "value": "G-DEMO12345" }
+        ],
+        "firingTriggerId": ["20"]
+      },
+      {
+        "tagId": "11",
+        "name": "GA4 Event - coffee_click",
+        "type": "gaawe",
+        "parameter": [
+          { "key": "eventName", "value": "coffee_click" },
+          { "key": "measurementId", "value": "G-DEMO12345" }
+        ],
+        "firingTriggerId": ["21"]
+      }
+    ],
+    "trigger": [
+      {
+        "triggerId": "20",
+        "name": "Custom Event - lead_submit",
+        "type": "customEvent",
+        "customEventFilter": [
+          {
+            "type": "equals",
+            "parameter": [
+              { "key": "arg0", "value": "{{_event}}" },
+              { "key": "arg1", "value": "lead_submit" }
+            ]
+          }
+        ]
+      },
+      {
+        "triggerId": "21",
+        "name": "Custom Event - coffee_click",
+        "type": "customEvent",
+        "customEventFilter": [
+          {
+            "type": "equals",
+            "parameter": [
+              { "key": "arg0", "value": "{{_event}}" },
+              { "key": "arg1", "value": "coffee_click" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

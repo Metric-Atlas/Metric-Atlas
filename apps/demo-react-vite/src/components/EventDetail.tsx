@@ -19,7 +19,8 @@ function factsOf(row: JoinedRow) {
     ["BINDING CONFIDENCE", b?.bindingConfidence ?? "—"],
     ["CODE STATE", h?.codeState ?? "no_health"],
     ["GA4 OBSERVATION", h?.ga4ObservationState ?? "no_health"],
-    ["GA4 MANAGED", h?.ga4ManagedState ?? "no_health"]
+    ["GA4 MANAGED", h?.ga4ManagedState ?? "no_health"],
+    ["GTM DESTINATION", row.gtmRoute?.destinationProvider ?? "—"]
   ] as [string, string][];
 }
 
@@ -46,6 +47,9 @@ export function EventDetail({ row, onMakeQuery }: { row: JoinedRow | null; onMak
     const key = st?.state ?? (h ? "unknown" : "no_health");
     return { name, state: key, stateKo: VALUE_KO[key] ?? key, ...PARAM_STATE_COLOR[key] };
   });
+  const missingCustomDimensions = params
+    .filter((parameter) => parameter.state === "not_registered")
+    .map((parameter) => parameter.name);
 
   return (
     <section style={{ ...card, minWidth: 0 }}>
@@ -85,6 +89,29 @@ export function EventDetail({ row, onMakeQuery }: { row: JoinedRow | null; onMak
         </div>
       )}
 
+      {row.gtmRoute && (
+        <div
+          style={{
+            marginTop: 11, padding: "11px 13px", borderRadius: 9, background: C.tealBg,
+            border: `1px solid ${C.teal}`, fontSize: 12.5, color: "#134e4a", lineHeight: 1.55,
+            overflowWrap: "anywhere"
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 3 }}>Code → GTM → GA4</div>
+          <div>
+            GTM Trigger <span style={{ fontFamily: mono }}>{row.gtmRoute.triggerName}</span>
+            {" → "}
+            Tag <span style={{ fontFamily: mono }}>{row.gtmRoute.tagName}</span>
+          </div>
+          <div>
+            destination event <span style={{ fontFamily: mono }}>{row.gtmRoute.destinationEventName}</span>
+            {row.gtmRoute.measurementId ? (
+              <> · measurement <span style={{ fontFamily: mono }}>{row.gtmRoute.measurementId}</span></>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       <div style={{ ...grid(130, 14), marginTop: 14 }}>
         {factsOf(row).map(([label, value]) => (
           <div key={label}>
@@ -100,6 +127,22 @@ export function EventDetail({ row, onMakeQuery }: { row: JoinedRow | null; onMak
 
       <div style={{ marginTop: 16 }}>
         <div style={{ ...fieldLabel, fontSize: 10, marginBottom: 6 }}>PARAMETERS · GA4 등록 상태</div>
+        {missingCustomDimensions.length > 0 && (
+          <div
+            style={{
+              marginBottom: 8, padding: "10px 12px", borderRadius: 8, background: C.redBg,
+              border: `1px solid ${C.red}`, color: "#7f1d1d", fontSize: 12.2, lineHeight: 1.55,
+              overflowWrap: "anywhere"
+            }}
+          >
+            <div style={{ fontWeight: 800, marginBottom: 2 }}>GA4 Custom Dimension 등록 필요</div>
+            <div>
+              GA4 Admin → Custom definitions에서 Event scope로{" "}
+              <span style={{ fontFamily: mono }}>{missingCustomDimensions.join(", ")}</span>
+              {" "}파라미터를 등록해야 보고서에서 이 값들을 기준으로 분석할 수 있습니다.
+            </div>
+          </div>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           {params.length === 0 && <div style={{ fontSize: 12, color: C.faint }}>파라미터 없음</div>}
           {params.map((p) => (

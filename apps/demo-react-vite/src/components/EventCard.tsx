@@ -49,6 +49,11 @@ export function EventCard({ row, active, onSelect }: { row: JoinedRow; active: b
         <span style={{ ...tag("#f0f0eb", C.gray), fontFamily: "'JetBrains Mono', monospace" }}>
           param {ev?.parameters.length ?? 0}
         </span>
+        {row.gtmRoute && (
+          <span style={tag(C.tealBg, C.teal)}>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>route GTM → {row.gtmRoute.destinationProvider}</span>
+          </span>
+        )}
       </span>
       <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: C.muted, overflowWrap: "anywhere" }}>
         {ev ? `${ev.source.file}:${ev.source.line}:${ev.source.column}` : "코드에서 탐지되지 않음"}

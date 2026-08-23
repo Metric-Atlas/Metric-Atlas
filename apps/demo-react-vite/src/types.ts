@@ -31,6 +31,18 @@ export interface JoinedRow {
   health: HealthItem | null;
   bindings: ManifestBinding[];
   bucket: HealthBucket;
+  gtmRoute: GtmRoute | null;
+}
+
+export interface GtmRoute {
+  eventKey: string;
+  gtmEventName: string;
+  triggerName: string;
+  tagName: string;
+  destinationProvider: "ga4" | "unknown";
+  destinationEventName: string;
+  measurementId?: string;
+  confidence: "exact" | "unresolved";
 }
 
 export type AnalysisType = "definition" | "event_count" | "comparison";

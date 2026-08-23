@@ -1,10 +1,12 @@
 import manifestJson from "../../../fixtures/mock-manifest.json";
 import healthJson from "../../../fixtures/mock-ga4-health.json";
 import queryResultJson from "../../../fixtures/mock-query-result.json";
+import gtmContainerExportJson from "../../../fixtures/mock-gtm-container-export.json";
 import {
   AnalyticsHealthReport,
   EventManifest,
 } from "@metric-atlas/contracts";
+import { resolveGtmRoutes } from "./gtmRoutes";
 import type { Ga4Health, HealthBucket, HealthItem, JoinedRow, Manifest, ManifestEvent } from "./types";
 
 /** Offline fallback remains enabled. No GA4 / LLM call, credential input, or storage write. */
@@ -85,6 +87,7 @@ export function bucketOf(event: ManifestEvent | null, item: HealthItem | null): 
 /** Manifest + Health, joined by eventKey. Health-only events are kept as code-undetected rows. */
 export function joinRows(m: Manifest = manifest, h: Ga4Health = health): JoinedRow[] {
   const byKey = new Map(h.items.map((i) => [i.eventKey, i]));
+  const gtmRoutes = resolveGtmRoutes(m, gtmContainerExportJson);
   const rows: JoinedRow[] = m.events.map((event) => {
     const item = byKey.get(event.eventKey) ?? null;
     return {
@@ -93,7 +96,8 @@ export function joinRows(m: Manifest = manifest, h: Ga4Health = health): JoinedR
       event,
       health: item,
       bindings: m.bindings.filter((b) => b.eventKeys.includes(event.eventKey)),
-      bucket: bucketOf(event, item)
+      bucket: bucketOf(event, item),
+      gtmRoute: gtmRoutes.get(event.eventKey) ?? null
     };
   });
   for (const item of h.items) {
@@ -104,7 +108,8 @@ export function joinRows(m: Manifest = manifest, h: Ga4Health = health): JoinedR
         event: null,
         health: item,
         bindings: [],
-        bucket: bucketOf(null, item)
+        bucket: bucketOf(null, item),
+        gtmRoute: null
       });
     }
   }

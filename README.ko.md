@@ -172,15 +172,81 @@ export default defineConfig({
 
 ## GA4 인증
 
-정식 운영에서는 환경변수·Secret Manager를 사용합니다.
+Analytics Health는 Node Runtime이 필요합니다. 브라우저가 GA4를 직접 조회하지 않습니다.
+GA4 인증 정보는 Runtime 환경에 설정한 뒤 CLI 서버를 실행합니다.
 
-권장 우선순위:
+### 로컬 Runtime
 
-1. `GOOGLE_APPLICATION_CREDENTIALS`
-2. `METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64`
-3. `METRIC_ATLAS_MODE=internal`이며 임시 입력이 명시적으로 허용된 경우 Runtime 메모리 입력
+서비스 계정 JSON은 레포 밖에 보관합니다.
+
+```bash
+mkdir -p ~/secure
+mv ~/Downloads/service-account.json ~/secure/metric-atlas-reader.json
+chmod 600 ~/secure/metric-atlas-reader.json
+```
+
+로컬 Runtime용 env 파일을 만듭니다.
+
+```bash
+cat > .env.metric-atlas <<'EOF'
+METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+GOOGLE_APPLICATION_CREDENTIALS=/Users/YOUR_NAME/secure/metric-atlas-reader.json
+METRIC_ATLAS_GA4_HEALTH_WINDOW_DAYS=30
+METRIC_ATLAS_GA4_RECENT_WINDOW_HOURS=48
+METRIC_ATLAS_CACHE_TTL_SECONDS=300
+EOF
+```
+
+Metric Atlas가 적용된 앱을 빌드하고 Runtime을 실행합니다.
+
+```bash
+METRIC_ATLAS_ENABLED=true npm run build
+npx metric-atlas serve ./dist --env ./.env.metric-atlas --host 127.0.0.1 --port 8787
+```
+
+Runtime API를 확인합니다.
+
+```bash
+curl http://127.0.0.1:8787/__metric-atlas/api/runtime-health
+curl http://127.0.0.1:8787/__metric-atlas/api/manifest
+curl http://127.0.0.1:8787/__metric-atlas/api/health
+```
+
+### 배포 Runtime
+
+운영 환경에서는 같은 값을 배포 플랫폼의 Secret 또는 Environment Variable CLI로 등록합니다.
+`.env.metric-atlas`는 Git에 커밋하지 않습니다.
+
+배포 환경이 Secret File을 지원하면 다음 값을 설정합니다.
+
+```bash
+METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+GOOGLE_APPLICATION_CREDENTIALS=/secure/path/metric-atlas-reader.json
+```
+
+배포 환경이 문자열 환경변수만 지원하면 JSON을 base64로 저장합니다.
+
+```bash
+base64 -i ~/secure/metric-atlas-reader.json | pbcopy
+```
+
+배포 플랫폼에 다음 Secret을 등록합니다.
+
+```bash
+METRIC_ATLAS_GA4_PROPERTY_ID=550079255
+METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64=<PASTE_BASE64_VALUE>
+```
+
+서버 시작 명령에서 키를 복원한 뒤 Runtime을 실행합니다.
+
+```bash
+echo "$METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64" | base64 -d > /tmp/metric-atlas-ga4.json
+export GOOGLE_APPLICATION_CREDENTIALS=/tmp/metric-atlas-ga4.json
+npx metric-atlas serve ./dist --host 0.0.0.0 --port "$PORT"
+```
 
 서비스 계정은 대상 GA4 Property에 필요한 최소 읽기 권한으로 추가해야 합니다.
+GA4 인증 정보는 `VITE_*`, 브라우저 저장소, 소스 코드, 빌드 산출물, 로그에 넣지 않습니다.
 
 ## 문서 읽기 순서
 
