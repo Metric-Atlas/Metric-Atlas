@@ -163,7 +163,23 @@ async function routeRequest(
   const dashboardPath = deps.dashboardPath ?? DEFAULT_DASHBOARD_PATH;
   if (
     (request.method === "GET" || request.method === "HEAD") &&
-    (url.pathname === dashboardPath || url.pathname.startsWith(`${dashboardPath}/`))
+    url.pathname === dashboardPath
+  ) {
+    // The dashboard's own HTML references its JS/CSS assets with relative URLs
+    // (e.g. "./assets/x.js") so the bundle works under any --dashboard-path.
+    // A browser resolves "./assets/x.js" against the *directory* of the current
+    // URL — without a trailing slash here, "/a/b" is treated as a file inside
+    // directory "/a", so the request goes out as "/a/x.js" instead of
+    // "/a/b/x.js" and 404s (or worse, falls through to the consumer's own
+    // index.html, which is what a "MIME type text/html" module-script error
+    // means). Redirect to the trailing-slash form so relative resolution works.
+    response.writeHead(302, { location: `${url.pathname}/${url.search}` });
+    response.end();
+    return;
+  }
+  if (
+    (request.method === "GET" || request.method === "HEAD") &&
+    url.pathname.startsWith(`${dashboardPath}/`)
   ) {
     await sendDashboardAsset(
       response,

@@ -13,6 +13,30 @@ afterEach(async () => {
 });
 
 describe("Analytics Health Dashboard route (ADR-009)", () => {
+  it("redirects the bare path (no trailing slash) so the browser resolves relative asset URLs correctly", async () => {
+    // Regression: the dashboard's built index.html references its JS bundle with a
+    // relative URL ("./assets/x.js") so it works under any --dashboard-path. Without
+    // a trailing slash on the page URL itself, a browser resolves that relative to
+    // the *parent* directory, requesting ".../assets/x.js" instead of
+    // ".../dashboard/assets/x.js" — which used to fall through to the consumer's own
+    // index.html (text/html) instead of the JS module, breaking the page silently.
+    const root = await temporaryRoot();
+    const dashboardAssetsDir = await temporaryRoot();
+    await writeFile(path.join(dashboardAssetsDir, "index.html"), "<h1>Dashboard</h1>");
+
+    const server = createRuntimeServer(root, { dashboardAssetsDir });
+    const { host, port } = await listen(server);
+    try {
+      const response = await fetch(`http://${host}:${port}${DEFAULT_DASHBOARD_PATH}`, {
+        redirect: "manual",
+      });
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe(`${DEFAULT_DASHBOARD_PATH}/`);
+    } finally {
+      await close(server);
+    }
+  });
+
   it("serves the bundled dashboard at the default path", async () => {
     const root = await temporaryRoot();
     const dashboardAssetsDir = await temporaryRoot();
