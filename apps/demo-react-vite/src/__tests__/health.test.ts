@@ -33,6 +33,18 @@ describe("health join by eventKey", () => {
     expect(rows.map((r) => r.eventName)).toContain("purchase_click");
     expect(rows.map((r) => r.eventKey)).toContain("ga4:purchase_click");
   });
+
+  it("joins GTM route evidence when container export matches a dataLayer event", () => {
+    const row = rows.find((r) => r.eventKey === "gtm:lead_submit");
+    expect(row?.gtmRoute).toMatchObject({
+      gtmEventName: "lead_submit",
+      triggerName: "Custom Event - lead_submit",
+      tagName: "GA4 Event - lead_submit",
+      destinationProvider: "ga4",
+      destinationEventName: "lead_submit",
+      confidence: "exact",
+    });
+  });
 });
 
 

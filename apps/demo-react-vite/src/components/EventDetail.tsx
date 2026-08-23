@@ -19,7 +19,8 @@ function factsOf(row: JoinedRow) {
     ["BINDING CONFIDENCE", b?.bindingConfidence ?? "—"],
     ["CODE STATE", h?.codeState ?? "no_health"],
     ["GA4 OBSERVATION", h?.ga4ObservationState ?? "no_health"],
-    ["GA4 MANAGED", h?.ga4ManagedState ?? "no_health"]
+    ["GA4 MANAGED", h?.ga4ManagedState ?? "no_health"],
+    ["GTM DESTINATION", row.gtmRoute?.destinationProvider ?? "—"]
   ] as [string, string][];
 }
 
@@ -82,6 +83,29 @@ export function EventDetail({ row, onMakeQuery }: { row: JoinedRow | null; onMak
           }}
         >
           {notice}
+        </div>
+      )}
+
+      {row.gtmRoute && (
+        <div
+          style={{
+            marginTop: 11, padding: "11px 13px", borderRadius: 9, background: C.tealBg,
+            border: `1px solid ${C.teal}`, fontSize: 12.5, color: "#134e4a", lineHeight: 1.55,
+            overflowWrap: "anywhere"
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 3 }}>Code → GTM → GA4</div>
+          <div>
+            GTM Trigger <span style={{ fontFamily: mono }}>{row.gtmRoute.triggerName}</span>
+            {" → "}
+            Tag <span style={{ fontFamily: mono }}>{row.gtmRoute.tagName}</span>
+          </div>
+          <div>
+            destination event <span style={{ fontFamily: mono }}>{row.gtmRoute.destinationEventName}</span>
+            {row.gtmRoute.measurementId ? (
+              <> · measurement <span style={{ fontFamily: mono }}>{row.gtmRoute.measurementId}</span></>
+            ) : null}
+          </div>
         </div>
       )}
 

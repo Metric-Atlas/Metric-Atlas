@@ -50,7 +50,8 @@ export const FIELD_KO: Record<string, string> = {
   "BINDING CONFIDENCE": "연결 확신도",
   "CODE STATE": "코드 상태",
   "GA4 OBSERVATION": "GA4 관측 상태",
-  "GA4 MANAGED": "GA4 관리 여부"
+  "GA4 MANAGED": "GA4 관리 여부",
+  "GTM DESTINATION": "GTM 목적지"
 };
 
 /** 원천 필드 값 → 한국어 뜻 */
