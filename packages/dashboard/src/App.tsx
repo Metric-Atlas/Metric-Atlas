@@ -81,8 +81,8 @@ export function App({ beforeContent }: AppProps = {}) {
 
       <main
         style={{
-          flex: "9999 1 620px", padding: "22px 24px 56px", display: "flex", flexDirection: "column",
-          gap: 16, minWidth: 0
+          flex: "9999 1 620px", padding: view === "query" ? "22px 24px 16px" : "22px 24px 56px",
+          display: "flex", flexDirection: "column", gap: 16, minWidth: 0
         }}
       >
         <header>
@@ -143,12 +143,14 @@ export function App({ beforeContent }: AppProps = {}) {
           <QueryView rows={rows} seed={querySeed} onSeedConsumed={() => setQuerySeed(null)} />
         )}
 
-        <footer style={{ fontSize: 11.5, color: C.faint, lineHeight: 1.6, overflowWrap: "anywhere" }}>
-          fixtures/mock-manifest.json · mock-ga4-health.json · mock-query-result.json (읽기 전용) · scan{" "}
-          {scanStats
-            ? `scan ${scanStats.filesScanned} files · ${scanStats.durationMs}ms · ${scanStats.eventsDetected} events`
-            : "scan stats unavailable"}
-        </footer>
+        {view !== "query" && (
+          <footer style={{ fontSize: 11.5, color: C.faint, lineHeight: 1.6, overflowWrap: "anywhere" }}>
+            fixtures/mock-manifest.json · mock-ga4-health.json · mock-query-result.json (읽기 전용) · scan{" "}
+            {scanStats
+              ? `scan ${scanStats.filesScanned} files · ${scanStats.durationMs}ms · ${scanStats.eventsDetected} events`
+              : "scan stats unavailable"}
+          </footer>
+        )}
       </main>
     </div>
   );
