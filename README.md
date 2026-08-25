@@ -47,20 +47,6 @@ Served by the Node Runtime at `/__metric-atlas/dashboard`. The first view is **C
 
 Ask questions about your events in plain language. Answers are grounded in the same Health evidence the dashboard shows (code state, GA4 observation, latest counts) so the LLM never claims an event is "collecting fine" without data to back it up. Set a key in the Runtime environment — OpenAI or Anthropic — with `metric-atlas init-env` or `metric-atlas set-llm-key` (see [LLM setup](#natural-language-query-setup-llm-optional) below). Everything else — search, filters, Health — works without an LLM.
 
-### ✅ PR Analytics Change Report — zero-server
-
-GitHub Actions rescans base and head commits and comments the diff on every pull request. Git is the baseline; no database required. [Setup](#pr-analytics-change-report-setup) below.
-
-```text
-Metric Atlas Analytics Change
-
-+ Added events: 3
-- Removed events: 1
-~ Changed emitter/provider: 0
-! Dynamic/unresolved: 2
-! Possible wrapper usage: 1
-```
-
 ## Quickstart
 
 ```bash
@@ -107,21 +93,20 @@ For normal use, prefer the npm release above.
 
 ## Do I need a server?
 
-**Not for the core.** The Overlay and the PR Report run with zero servers. A server enters the picture only for the **Analytics Health Dashboard** — GA4 must be queried with a credential, and that credential must never reach the browser, so the query has to run in a Node process you control.
+**Not for the core.** The Overlay runs with zero servers. A server enters the picture only for the **Analytics Health Dashboard** — GA4 must be queried with a credential, and that credential must never reach the browser, so the query has to run in a Node process you control.
 
-| You have… | Overlay | PR Report | Health Dashboard |
-|---|---|---|---|
-| Static hosting only (S3/Vercel/Pages) | ✅ works as-is | ✅ works (runs in CI) | Run `metric-atlas serve` locally when you want to check, or host the Runtime separately and proxy `/__metric-atlas/*` to it |
-| Your own server / reverse proxy (nginx, ALB, k8s) | ✅ works as-is | ✅ works | Add the Runtime as one internal service and route `/__metric-atlas/*` to it — one proxy rule, existing deployment untouched |
-| No server yet | ✅ | ✅ | `npx metric-atlas serve ./dist` is the only server you need — it serves your site, the dashboard, and the GA4 proxy in a single Node process (no database) |
+| You have… | Overlay | Health Dashboard |
+|---|---|---|
+| Static hosting only (S3/Vercel/Pages) | ✅ works as-is | Run `metric-atlas serve` locally when you want to check, or host the Runtime separately and proxy `/__metric-atlas/*` to it |
+| Your own server / reverse proxy (nginx, ALB, k8s) | ✅ works as-is | Add the Runtime as one internal service and route `/__metric-atlas/*` to it — one proxy rule, existing deployment untouched |
+| No server yet | ✅ | `npx metric-atlas serve ./dist` is the only server you need — it serves your site, the dashboard, and the GA4 proxy in a single Node process (no database) |
 
 The adoption ladder most teams follow:
 
 ```text
-1. Plugin only            → Overlay                    (no server)
-2. + CLI in CI            → PR Analytics Report        (no server)
-3. + occasional local serve → Health when you need it  (no server hosted)
-4. + hosted Runtime       → always-on team dashboard   (one small Node process)
+1. Plugin only              → Overlay                   (no server)
+2. + occasional local serve → Health when you need it    (no server hosted)
+3. + hosted Runtime         → always-on team dashboard   (one small Node process)
 ```
 
 ## Analytics Health setup (GA4)
@@ -181,58 +166,9 @@ npx metric-atlas set-llm-key --key-env MY_KEY --base-url https://openrouter.ai/a
 
 Prefer setting the env vars directly instead of using the CLI? `METRIC_ATLAS_LLM_API_KEY` (or `OPENAI_API_KEY`), `METRIC_ATLAS_LLM_PROVIDER` (`openai` default, or `anthropic`), `METRIC_ATLAS_LLM_BASE_URL`, `METRIC_ATLAS_LLM_MODEL` — full reference [below](#runtime-environment-variables-reference).
 
-## PR Analytics Change Report setup
-
-Zero server, zero credentials — it only reads two Git refs and comments the diff. Add `@metric-atlas/cli` to any workflow that runs on `pull_request`:
-
-```yaml
-# .github/workflows/metric-atlas-report.yml
-name: Metric Atlas Analytics Report
-
-on:
-  pull_request:
-
-permissions:
-  contents: read
-  pull-requests: write
-
-jobs:
-  report:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # full history so both refs below can be diffed
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.18.0
-
-      - run: npm install -D @metric-atlas/cli
-
-      - run: |
-          npx metric-atlas report \
-            --base-ref ${{ github.event.pull_request.base.sha }} \
-            --head-ref ${{ github.event.pull_request.head.sha }} \
-            --output metric-atlas-report.md
-
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require("node:fs");
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: fs.readFileSync("metric-atlas-report.md", "utf8"),
-            });
-```
-
-`metric-atlas report` reads the base/head Git trees directly (via `git show`) — it never checks out either commit or touches your working tree, and it never needs the Vite plugin or a build step. Only the GA4/GTM detectors run by default; add others with `--detectors`. For a version that updates the same PR comment instead of posting a new one every push, see this repo's own `.github/workflows/metric-atlas-analytics-report.yml` and `.github/actions/analytics-report/action.yml`.
-
 ## Runtime environment variables (reference)
 
-Every variable below is read by the Node Runtime process only (`metric-atlas serve`, or the scanner for the first block) — never by the browser bundle. `metric-atlas init-env` writes a `.env.metric-atlas` file with the GA4 and LLM rows pre-filled at these same defaults.
+Every variable below is read by the Node Runtime process only (`metric-atlas serve`) — never by the browser bundle. `metric-atlas init-env` writes a `.env.metric-atlas` file with the GA4 and LLM rows pre-filled at these same defaults.
 
 | Variable | Default | Purpose |
 |---|---|---|
