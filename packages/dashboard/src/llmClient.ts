@@ -168,7 +168,7 @@ export function friendlyLlmError(code: string, detail?: unknown): string {
     return `LLM 제공자가 요청을 거부했습니다. API 키, 모델명, 결제/쿼터 상태를 확인해주세요.${suffix}`;
   }
   if (code === "llm_empty_response") {
-    return `LLM 제공자가 성공 상태를 반환했지만 본문이 비어 있습니다. Runtime이 받은 provider 응답의 finish_reason, refusal, tool_calls 힌트를 확인해주세요.${suffix}`;
+    return `AI가 답변 없이 빈 응답을 보냈습니다. 잠시 후 다시 시도하거나, 서버에 설정한 모델 이름과 API 키 상태를 확인해주세요.${suffix}`;
   }
   if (code === "runtime_unavailable") {
     return `Metric Atlas Runtime에 연결할 수 없습니다. Runtime 배포 상태와 /__metric-atlas/api/llm/generate 경로를 확인해주세요.${suffix}`;

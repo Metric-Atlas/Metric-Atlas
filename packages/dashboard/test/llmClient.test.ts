@@ -138,7 +138,7 @@ describe("callRuntimeLlm (server relay path)", () => {
       callRuntimeLlm({ question: "q", analysisType: "event_count", candidates: [] }, fetcher)
     ).rejects.toMatchObject({
       code: "llm_empty_response",
-      message: expect.stringContaining("본문이 비어 있습니다")
+      message: expect.stringContaining("AI가 답변 없이 빈 응답을 보냈습니다")
     });
   });
 });
@@ -148,6 +148,6 @@ describe("friendlyLlmError", () => {
     expect(friendlyLlmError("llm_timeout")).toContain("제한 시간");
     expect(friendlyLlmError("llm_upstream_error", "invalid api key")).toContain("API 키");
     expect(friendlyLlmError("llm_network_error", "ENOTFOUND")).toContain("연결하지 못했습니다");
-    expect(friendlyLlmError("llm_empty_response", "finish_reason=tool_calls")).toContain("finish_reason=tool_calls");
+    expect(friendlyLlmError("llm_empty_response", "finish_reason=tool_calls")).toContain("모델 이름과 API 키");
   });
 });
