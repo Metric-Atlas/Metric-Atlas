@@ -77,3 +77,32 @@ export interface QueryOutcome {
   };
   noResultReason: string;
 }
+
+/**
+ * "대화모드"는 후보가 확정되는 즉시 LLM 설명을 자동 요청한다.
+ * "분석모드"는 QueryPlan/Mock 결과만 계산하고 LLM은 수동 버튼으로만 호출한다.
+ */
+export type QueryMode = "chat" | "analysis";
+
+export type LlmState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "success"; message: string; model: string; provider: string }
+  | { status: "error"; message: string; code: string };
+
+/** "이벤트 탐색" 화면에서 "질의로 보내기"를 눌렀을 때 QueryView에 넘기는 시작 질문. */
+export interface QuerySeed {
+  question: string;
+  eventKey: string;
+}
+
+/** 채팅형 질의 화면의 한 턴. candidates/chosenKey는 이 턴이 생성된 시점의 질문으로 고정된다. */
+export interface QueryTurn {
+  id: string;
+  question: string;
+  mode: QueryMode;
+  analysisType: AnalysisType;
+  candidates: JoinedRow[];
+  chosenKey: string | null;
+  llm: LlmState;
+}

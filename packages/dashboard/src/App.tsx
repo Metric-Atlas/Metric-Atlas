@@ -5,8 +5,8 @@ import { EventsView } from "./views/EventsView";
 import { QueryView } from "./views/QueryView";
 import { fixtureDashboardData, joinRows, loadDashboardData, type DashboardData } from "./data";
 import { C } from "./labels";
-import { EMPTY_FILTERS, filterRows, findCandidates, type FilterState } from "./search";
-import type { AnalysisType, HealthBucket } from "./types";
+import { EMPTY_FILTERS, filterRows, type FilterState } from "./search";
+import type { HealthBucket, QuerySeed } from "./types";
 
 export type ViewId = "overview" | "events" | "query";
 
@@ -21,7 +21,7 @@ const VIEW_META: Record<ViewId, { title: string; sub: string }> = {
   },
   query: {
     title: "질의",
-    sub: "질문에서 이벤트 후보를 좁히고 QueryPlan을 만든 뒤 Mock 결과를 확인합니다. 실제 GA4/LLM 호출은 없습니다."
+    sub: "질문에서 이벤트 후보를 좁히고 QueryPlan과 Mock 결과를 확인합니다. GA4 조회는 Mock이며, AI 설명만 실제 LLM을 호출합니다."
   }
 };
 
@@ -55,15 +55,10 @@ export function App({ beforeContent }: AppProps = {}) {
   const [view, setView] = useState<ViewId>("overview");
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [selectedKey, setSelectedKey] = useState<string | null>("ga4:purchase_click");
-  const [question, setQuestion] = useState("구매 클릭이 지난달보다 늘었나요?");
-  const [chosenKey, setChosenKey] = useState<string | null>(null);
-  const [analysisType, setAnalysisType] = useState<AnalysisType>("comparison");
+  const [querySeed, setQuerySeed] = useState<QuerySeed | null>(null);
 
   const visibleRows = useMemo(() => filterRows(rows, filters), [rows, filters]);
   const selected = rows.find((r) => r.eventKey === selectedKey) ?? null;
-
-  const candidates = useMemo(() => findCandidates(rows, question), [rows, question]);
-  const chosen = candidates.find((c) => c.eventKey === chosenKey) ?? (candidates.length === 1 ? (candidates[0] ?? null) : null);
 
   const openBucket = (bucket: HealthBucket) => {
     setFilters({ ...EMPTY_FILTERS, health: bucket });
@@ -137,8 +132,7 @@ export function App({ beforeContent }: AppProps = {}) {
             onSelect={setSelectedKey}
             onMakeQuery={() => {
               if (selected) {
-                setQuestion(selected.eventName);
-                setChosenKey(selected.eventKey);
+                setQuerySeed({ question: selected.eventName, eventKey: selected.eventKey });
               }
               setView("query");
             }}
@@ -146,18 +140,7 @@ export function App({ beforeContent }: AppProps = {}) {
         )}
 
         {view === "query" && (
-          <QueryView
-            question={question}
-            setQuestion={(q) => {
-              setQuestion(q);
-              setChosenKey(null);
-            }}
-            candidates={candidates}
-            chosen={chosen}
-            onChoose={setChosenKey}
-            analysisType={analysisType}
-            setAnalysisType={setAnalysisType}
-          />
+          <QueryView rows={rows} seed={querySeed} onSeedConsumed={() => setQuerySeed(null)} />
         )}
 
         <footer style={{ fontSize: 11.5, color: C.faint, lineHeight: 1.6, overflowWrap: "anywhere" }}>
