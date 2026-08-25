@@ -51,6 +51,9 @@ export function App({ beforeContent }: AppProps = {}) {
     [dashboardData]
   );
   const { manifest, health } = dashboardData;
+  /** 이 모노레포의 로컬 데모(apps/demo-react-vite)처럼 manifest/health 둘 다 fixture로 떨어진 경우에만
+   *  "Fixture 모드"다. 실제 설치에서는 manifest는 항상 빌드에서 나온 실 데이터이므로 이 배지가 뜨지 않는다. */
+  const isFixtureMode = dashboardData.manifestSource === "fixture" && dashboardData.healthSource === "fixture";
   const scanStats = manifest.scanStats;
   const [view, setView] = useState<ViewId>("overview");
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
@@ -70,6 +73,7 @@ export function App({ beforeContent }: AppProps = {}) {
       <Sidebar
         view={view}
         onNavigate={setView}
+        isFixtureMode={isFixtureMode}
         context={[
           { label: "MANIFEST", value: `v${manifest.version}` },
           { label: "BUILD ID", value: manifest.buildId },
@@ -145,7 +149,7 @@ export function App({ beforeContent }: AppProps = {}) {
 
         {view !== "query" && (
           <footer style={{ fontSize: 11.5, color: C.faint, lineHeight: 1.6, overflowWrap: "anywhere" }}>
-            fixtures/mock-manifest.json · mock-ga4-health.json · mock-query-result.json (읽기 전용) · scan{" "}
+            {isFixtureMode && "fixtures/mock-manifest.json · mock-ga4-health.json · mock-query-result.json (읽기 전용) · "}
             {scanStats
               ? `scan ${scanStats.filesScanned} files · ${scanStats.durationMs}ms · ${scanStats.eventsDetected} events`
               : "scan stats unavailable"}
