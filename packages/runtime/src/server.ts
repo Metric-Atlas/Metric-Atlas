@@ -229,12 +229,12 @@ async function generateLlmResponse(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
-  const apiKey = envValue("METRIC_ATLAS_LLM_API_KEY") ?? envValue("OPENAI_API_KEY");
+  const apiKey = envValue("METRIC_ATLAS_LLM_API_KEY");
   if (!apiKey) {
     sendJson(response, 400, {
       error: {
         code: "missing_llm_api_key",
-        message: "Set METRIC_ATLAS_LLM_API_KEY or OPENAI_API_KEY in the Node Runtime environment.",
+        message: "Set METRIC_ATLAS_LLM_API_KEY in the Node Runtime environment.",
       },
     });
     return;
@@ -252,10 +252,11 @@ async function generateLlmResponse(
     return;
   }
 
-  const provider = envValue("METRIC_ATLAS_LLM_PROVIDER") === "anthropic" ? "anthropic" : "openai";
-  const defaults = LLM_PROVIDER_DEFAULTS[provider];
+  const configuredProvider = resolveLlmProvider(envValue("METRIC_ATLAS_LLM_PROVIDER"));
+  const defaults = LLM_PROVIDER_DEFAULTS[configuredProvider];
   const baseUrl = trimTrailingSlash(envValue("METRIC_ATLAS_LLM_BASE_URL") ?? defaults.baseUrl);
   const model = envValue("METRIC_ATLAS_LLM_MODEL") ?? defaults.model;
+  const responseProvider = displayLlmProvider(configuredProvider, baseUrl);
   const timeoutMs = parsePositiveInteger(process.env.METRIC_ATLAS_LLM_TIMEOUT_MS, 10_000);
   const question = {
     question: body.question,
@@ -266,7 +267,7 @@ async function generateLlmResponse(
   let upstream: Response;
   try {
     upstream =
-      provider === "anthropic"
+      configuredProvider === "anthropic"
         ? await fetch(`${baseUrl}/messages`, {
             method: "POST",
             headers: {
@@ -302,21 +303,34 @@ async function generateLlmResponse(
     return;
   }
 
-  const upstreamBody: unknown = await upstream.json().catch(() => null);
+  const parsedUpstream = await readUpstreamJson(upstream);
+  const upstreamBody = parsedUpstream.value;
   if (!upstream.ok) {
     sendJson(response, upstream.status, {
       error: {
         code: "llm_upstream_error",
-        message: extractUpstreamError(upstreamBody) ?? `LLM provider returned ${upstream.status}`,
+        message: extractUpstreamError(upstreamBody) ?? parsedUpstream.error ?? `LLM provider returned ${upstream.status}`,
+      },
+    });
+    return;
+  }
+
+  const content = configuredProvider === "anthropic" ? extractAnthropicContent(upstreamBody) : extractChatContent(upstreamBody);
+  if (!content.trim()) {
+    const emptyReason = configuredProvider === "anthropic" ? describeEmptyAnthropicResponse(upstreamBody) : describeEmptyChatResponse(upstreamBody);
+    sendJson(response, 502, {
+      error: {
+        code: "llm_empty_response",
+        message: `LLM provider returned a successful response without text content.${parsedUpstream.error ? ` ${parsedUpstream.error}` : ""}${emptyReason ? ` ${emptyReason}` : ""}`,
       },
     });
     return;
   }
 
   sendJson(response, 200, {
-    provider,
+    provider: responseProvider,
     model,
-    content: provider === "anthropic" ? extractAnthropicContent(upstreamBody) : extractChatContent(upstreamBody),
+    content,
   });
 }
 
@@ -335,11 +349,22 @@ const LLM_SYSTEM_PROMPT =
 const ANTHROPIC_API_VERSION = "2023-06-01";
 
 export const LLM_PROVIDER_DEFAULTS = {
+  openrouter: { baseUrl: "https://openrouter.ai/api/v1", model: "openrouter/free" },
   openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
   anthropic: { baseUrl: "https://api.anthropic.com/v1", model: "claude-haiku-4-5-20251001" },
 } as const;
 
 export type LlmProviderName = keyof typeof LLM_PROVIDER_DEFAULTS;
+
+function resolveLlmProvider(value: string | undefined): LlmProviderName {
+  if (value === "anthropic" || value === "openai" || value === "openrouter") return value;
+  return "openrouter";
+}
+
+function displayLlmProvider(provider: LlmProviderName, baseUrl: string): LlmProviderName {
+  if (provider === "openai" && baseUrl.includes("openrouter.ai")) return "openrouter";
+  return provider;
+}
 
 function buildOpenAiChatBody(question: unknown, model: string) {
   return {
@@ -370,6 +395,36 @@ async function readJsonBody<T>(request: IncomingMessage): Promise<T> {
   return JSON.parse(Buffer.concat(chunks).toString("utf8")) as T;
 }
 
+async function readUpstreamJson(response: Response): Promise<{ value: unknown; error?: string }> {
+  const text = await response.text().catch(() => "");
+  if (!text.trim()) return { value: null, error: "Provider response body was empty." };
+  const parsed = parseJsonLenient(text);
+  if (parsed.ok) return { value: parsed.value };
+  return {
+    value: null,
+    error: `Provider response was not valid JSON. bodyLength=${text.length}; parseError=${parsed.error}`,
+  };
+}
+
+function parseJsonLenient(text: string): { ok: true; value: unknown } | { ok: false; error: string } {
+  const attempts = [text, text.trimStart()];
+  const firstObject = text.search(/[\[{]/);
+  if (firstObject > 0) attempts.push(text.slice(firstObject));
+  for (const attempt of attempts) {
+    try {
+      return { ok: true, value: JSON.parse(attempt) };
+    } catch {
+      // Try the next sanitized shape.
+    }
+  }
+  try {
+    JSON.parse(text);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+  return { ok: false, error: "unknown parse error" };
+}
+
 function llmMaxCandidates(): number {
   return parsePositiveInteger(process.env.METRIC_ATLAS_LLM_MAX_CANDIDATES, 20);
 }
@@ -394,23 +449,74 @@ function extractChatContent(value: unknown): string {
   if (!value || typeof value !== "object") return "";
   const choices = (value as { choices?: unknown }).choices;
   if (!Array.isArray(choices)) return "";
-  const first = choices[0];
-  if (!first || typeof first !== "object") return "";
-  const message = (first as { message?: unknown }).message;
-  if (!message || typeof message !== "object") return "";
-  const content = (message as { content?: unknown }).content;
-  return typeof content === "string" ? content : "";
+  for (const choice of choices) {
+    if (!choice || typeof choice !== "object") continue;
+    const message = (choice as { message?: unknown }).message;
+    const delta = (choice as { delta?: unknown }).delta;
+    const messageContent = message && typeof message === "object" ? textFromContent((message as { content?: unknown }).content) : "";
+    if (messageContent) return messageContent;
+    const deltaContent = delta && typeof delta === "object" ? textFromContent((delta as { content?: unknown }).content) : "";
+    if (deltaContent) return deltaContent;
+    const reasoning = message && typeof message === "object" ? (message as { reasoning?: unknown }).reasoning : "";
+    if (typeof reasoning === "string" && reasoning.trim()) return reasoning.trim();
+    const text = (choice as { text?: unknown }).text;
+    if (typeof text === "string" && text.trim()) return text.trim();
+  }
+  return "";
 }
 
 function extractAnthropicContent(value: unknown): string {
   if (!value || typeof value !== "object") return "";
   const content = (value as { content?: unknown }).content;
+  return textFromContent(content);
+}
+
+function textFromContent(content: unknown): string {
+  if (typeof content === "string") return content.trim();
   if (!Array.isArray(content)) return "";
-  const textBlock = content.find(
-    (block): block is { type: "text"; text: string } =>
-      Boolean(block) && typeof block === "object" && (block as { type?: unknown }).type === "text",
-  );
-  return textBlock ? textBlock.text : "";
+  return content
+    .map((block) => {
+      if (!block || typeof block !== "object") return "";
+      const text = (block as { text?: unknown }).text;
+      return typeof text === "string" ? text.trim() : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function describeEmptyChatResponse(value: unknown): string {
+  if (!value || typeof value !== "object") return "Provider body was not an object.";
+  const choices = (value as { choices?: unknown }).choices;
+  if (!Array.isArray(choices)) return "No choices array was present.";
+  if (choices.length === 0) return "Choices array was empty.";
+  const hints = choices
+    .map((choice, index) => {
+      if (!choice || typeof choice !== "object") return `choice[${index}]: not_object`;
+      const finishReason = (choice as { finish_reason?: unknown }).finish_reason;
+      const message = (choice as { message?: unknown }).message;
+      const messageObject = message && typeof message === "object" ? message : null;
+      const refusal = messageObject ? (messageObject as { refusal?: unknown }).refusal : undefined;
+      const toolCalls = messageObject ? (messageObject as { tool_calls?: unknown }).tool_calls : undefined;
+      const parts = [
+        typeof finishReason === "string" ? `finish_reason=${finishReason}` : "",
+        typeof refusal === "string" && refusal.trim() ? "refusal=present" : "",
+        Array.isArray(toolCalls) && toolCalls.length > 0 ? `tool_calls=${toolCalls.length}` : "",
+      ].filter(Boolean);
+      return parts.length > 0 ? `choice[${index}]: ${parts.join(", ")}` : "";
+    })
+    .filter(Boolean);
+  return hints.length > 0 ? hints.join("; ") : `choices=${choices.length}, but no text-like fields were present.`;
+}
+
+function describeEmptyAnthropicResponse(value: unknown): string {
+  if (!value || typeof value !== "object") return "Provider body was not an object.";
+  const stopReason = (value as { stop_reason?: unknown }).stop_reason;
+  const content = (value as { content?: unknown }).content;
+  const hints = [
+    typeof stopReason === "string" ? `stop_reason=${stopReason}` : "",
+    Array.isArray(content) ? `content_blocks=${content.length}` : "No content array was present.",
+  ].filter(Boolean);
+  return hints.join("; ");
 }
 
 function extractUpstreamError(value: unknown): string | null {
@@ -461,7 +567,7 @@ function runtimeHealth(root: string): RuntimeHealth {
       ga4ServiceAccountJsonBase64: Boolean(
         process.env.METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64,
       ),
-      llmApiKey: Boolean(process.env.OPENAI_API_KEY || process.env.METRIC_ATLAS_LLM_API_KEY),
+      llmApiKey: Boolean(process.env.METRIC_ATLAS_LLM_API_KEY),
     },
   };
 }

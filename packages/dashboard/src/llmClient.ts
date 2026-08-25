@@ -85,10 +85,14 @@ export async function callRuntimeLlm(
     throw new LlmRequestError(code, friendlyLlmError(code, error?.message));
   }
   const parsed = body as { provider?: string; model?: string; content?: string } | null;
+  const content = parsed?.content?.trim() ?? "";
+  if (!content) {
+    throw new LlmRequestError("llm_empty_response", friendlyLlmError("llm_empty_response"));
+  }
   return {
-    provider: parsed?.provider ?? "openai-compatible",
+    provider: parsed?.provider ?? "openrouter",
     model: parsed?.model ?? "unknown",
-    content: parsed?.content || "LLM이 빈 응답을 반환했습니다."
+    content
   };
 }
 
@@ -116,23 +120,26 @@ export function extractChatContent(value: unknown): string {
   if (!value || typeof value !== "object") return "";
   const choices = (value as { choices?: unknown }).choices;
   if (!Array.isArray(choices)) return "";
-  const first = choices[0];
-  if (!first || typeof first !== "object") return "";
-  const message = (first as { message?: unknown }).message;
-  if (!message || typeof message !== "object") return "";
-  const content = (message as { content?: unknown }).content;
-  return typeof content === "string" ? content : "";
+  for (const choice of choices) {
+    if (!choice || typeof choice !== "object") continue;
+    const message = (choice as { message?: unknown }).message;
+    const delta = (choice as { delta?: unknown }).delta;
+    const messageContent = message && typeof message === "object" ? textFromContent((message as { content?: unknown }).content) : "";
+    if (messageContent) return messageContent;
+    const deltaContent = delta && typeof delta === "object" ? textFromContent((delta as { content?: unknown }).content) : "";
+    if (deltaContent) return deltaContent;
+    const reasoning = message && typeof message === "object" ? (message as { reasoning?: unknown }).reasoning : "";
+    if (typeof reasoning === "string" && reasoning.trim()) return reasoning.trim();
+    const text = (choice as { text?: unknown }).text;
+    if (typeof text === "string" && text.trim()) return text.trim();
+  }
+  return "";
 }
 
 export function extractAnthropicContent(value: unknown): string {
   if (!value || typeof value !== "object") return "";
   const content = (value as { content?: unknown }).content;
-  if (!Array.isArray(content)) return "";
-  const textBlock = content.find(
-    (block): block is { type: "text"; text: string } =>
-      Boolean(block) && typeof block === "object" && (block as { type?: unknown }).type === "text"
-  );
-  return textBlock ? textBlock.text : "";
+  return textFromContent(content);
 }
 
 export function extractUpstreamError(value: unknown): string | null {
@@ -160,6 +167,9 @@ export function friendlyLlmError(code: string, detail?: unknown): string {
   if (code === "llm_upstream_error" || code.startsWith("llm_upstream_")) {
     return `LLM 제공자가 요청을 거부했습니다. API 키, 모델명, 결제/쿼터 상태를 확인해주세요.${suffix}`;
   }
+  if (code === "llm_empty_response") {
+    return `AI가 답변 없이 빈 응답을 보냈습니다. 잠시 후 다시 시도하거나, 서버에 설정한 모델 이름과 API 키 상태를 확인해주세요.${suffix}`;
+  }
   if (code === "runtime_unavailable") {
     return `Metric Atlas Runtime에 연결할 수 없습니다. Runtime 배포 상태와 /__metric-atlas/api/llm/generate 경로를 확인해주세요.${suffix}`;
   }
@@ -167,4 +177,17 @@ export function friendlyLlmError(code: string, detail?: unknown): string {
     return `Runtime LLM 요청이 실패했습니다. 상태 코드: ${code.replace("http_", "")}.${suffix}`;
   }
   return `LLM 요청이 실패했습니다.${suffix}`;
+}
+
+function textFromContent(content: unknown): string {
+  if (typeof content === "string") return content.trim();
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((block) => {
+      if (!block || typeof block !== "object") return "";
+      const text = (block as { text?: unknown }).text;
+      return typeof text === "string" ? text.trim() : "";
+    })
+    .filter(Boolean)
+    .join("\n");
 }

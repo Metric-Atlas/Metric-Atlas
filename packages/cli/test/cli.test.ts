@@ -186,7 +186,7 @@ describe("metric-atlas CLI", () => {
         "--google-application-credentials",
         "/secure/reader.json",
         "--llm-provider",
-        "openai",
+        "openrouter",
         "--llm-base-url",
         "https://openrouter.ai/api/v1",
         "--llm-model",
@@ -220,7 +220,7 @@ describe("metric-atlas CLI", () => {
     });
 
     await execute(process.execPath, [cli, "init-env", "--output", outputFile, "--force"]);
-    expect(await readFile(outputFile, "utf8")).toContain("METRIC_ATLAS_LLM_PROVIDER=openai");
+    expect(await readFile(outputFile, "utf8")).toContain("METRIC_ATLAS_LLM_PROVIDER=openrouter");
   });
 
   it("registers or rotates the LLM key in an existing Runtime env file without printing the key", async () => {
@@ -247,7 +247,7 @@ describe("metric-atlas CLI", () => {
       "--key",
       secret,
       "--provider",
-      "openai",
+      "openrouter",
       "--base-url",
       "https://openrouter.ai/api/v1",
       "--model",
@@ -258,7 +258,7 @@ describe("metric-atlas CLI", () => {
     expect(contents).toContain("METRIC_ATLAS_GA4_PROPERTY_ID=123456789");
     expect(contents).toContain("GOOGLE_APPLICATION_CREDENTIALS=/secure/reader.json");
     expect(contents).toContain("METRIC_ATLAS_LLM_API_KEY=sk-registered-secret");
-    expect(contents).toContain("METRIC_ATLAS_LLM_PROVIDER=openai");
+    expect(contents).toContain("METRIC_ATLAS_LLM_PROVIDER=openrouter");
     expect(contents).toContain("METRIC_ATLAS_LLM_BASE_URL=https://openrouter.ai/api/v1");
     expect(contents).toContain("METRIC_ATLAS_LLM_MODEL=openrouter/free");
     expect(contents).not.toContain("old-key");

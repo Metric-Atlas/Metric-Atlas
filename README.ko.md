@@ -45,7 +45,7 @@ Node Runtime이 `/__metric-atlas/dashboard`에서 서빙합니다. 첫 화면은
 
 ### 🤖 자연어 질의 *(선택)*
 
-이벤트에 대해 자연어로 질문할 수 있습니다. 답변은 대시보드가 보여주는 것과 같은 Health 근거(코드 상태, GA4 관측 여부, 최근 발생 수)에 기반하므로, 근거 없이 "정상 수집 중"이라고 단정하지 않습니다. Runtime 환경에 키를 설정하면 됩니다 — OpenAI 또는 Anthropic, `metric-atlas init-env`나 `metric-atlas set-llm-key`로 설정 (아래 [LLM 설정](#자연어-질의-설정-llm-선택) 참고). 검색·필터·Health는 LLM 없이도 전부 동작합니다.
+이벤트에 대해 자연어로 질문할 수 있습니다. 답변은 대시보드가 보여주는 것과 같은 Health 근거(코드 상태, GA4 관측 여부, 최근 발생 수)에 기반하므로, 근거 없이 "정상 수집 중"이라고 단정하지 않습니다. Runtime 환경에 키를 설정하면 됩니다 — 기본은 OpenRouter, 또는 OpenAI/Anthropic을 직접 사용 — `metric-atlas init-env`나 `metric-atlas set-llm-key`로 설정 (아래 [LLM 설정](#자연어-질의-설정-llm-선택) 참고). 검색·필터·Health는 LLM 없이도 전부 동작합니다.
 
 ### ✅ PR Analytics Change Report — 서버 불필요
 
@@ -159,27 +159,30 @@ curl http://127.0.0.1:8787/__metric-atlas/api/health
 
 ## 자연어 질의 설정 (LLM, 선택)
 
-위에서 만든 `.env.metric-atlas`에 키를 추가하되, 비밀값을 파일에 직접 붙여넣지 않도록 합니다 (`--key-env`는 이미 설정해둔 셸 변수에서 읽고, `--key-stdin`은 표준입력에서 읽습니다):
+위에서 만든 `.env.metric-atlas`에 키를 추가하되, 비밀값을 파일에 직접 붙여넣지 않도록 합니다 (`--key-env`는 이미 설정해둔 셸 변수에서 읽고, `--key-stdin`은 표준입력에서 읽습니다). 기본 provider는 [OpenRouter](https://openrouter.ai)입니다(무료 티어가 있고 여러 모델에 접근할 수 있는 게이트웨이):
+
+```bash
+export MY_OPENROUTER_KEY=sk-or-...
+npx metric-atlas set-llm-key --key-env MY_OPENROUTER_KEY
+```
+
+OpenAI나 Anthropic(Claude)을 직접 쓰고 싶으면 방식은 같습니다 — `--provider`만 넘기면 됩니다:
 
 ```bash
 export MY_OPENAI_KEY=sk-...
-npx metric-atlas set-llm-key --key-env MY_OPENAI_KEY
-```
+npx metric-atlas set-llm-key --key-env MY_OPENAI_KEY --provider openai
 
-Anthropic(Claude)도 방식은 같습니다 — `--provider anthropic`과 해당 키를 넘기면 됩니다:
-
-```bash
 export MY_ANTHROPIC_KEY=sk-ant-...
 npx metric-atlas set-llm-key --key-env MY_ANTHROPIC_KEY --provider anthropic
 ```
 
-`metric-atlas serve`를 재시작하면(또는 Runtime을 재배포하면) 새 키가 적용됩니다. OpenAI 호환 게이트웨이(OpenRouter, 자체 호스팅 모델 등)도 `--base-url`로 그대로 사용할 수 있습니다:
+`metric-atlas serve`를 재시작하면(또는 Runtime을 재배포하면) 새 키가 적용됩니다. 다른 OpenAI 호환 엔드포인트(다른 게이트웨이, 자체 호스팅 모델 등)도 `--base-url`/`--model`로 그대로 사용할 수 있습니다:
 
 ```bash
-npx metric-atlas set-llm-key --key-env MY_KEY --base-url https://openrouter.ai/api/v1 --model openrouter/some-model
+npx metric-atlas set-llm-key --key-env MY_KEY --base-url https://your-endpoint/v1 --model some-model
 ```
 
-CLI 대신 환경변수를 직접 설정하고 싶다면: `METRIC_ATLAS_LLM_API_KEY`(또는 `OPENAI_API_KEY`), `METRIC_ATLAS_LLM_PROVIDER`(기본 `openai`, 또는 `anthropic`), `METRIC_ATLAS_LLM_BASE_URL`, `METRIC_ATLAS_LLM_MODEL` — 전체 목록은 [아래 레퍼런스](#runtime-환경변수-레퍼런스) 참고.
+CLI 대신 환경변수를 직접 설정하고 싶다면: `METRIC_ATLAS_LLM_API_KEY`, `METRIC_ATLAS_LLM_PROVIDER`(기본 `openrouter`, 또는 `openai`/`anthropic`), `METRIC_ATLAS_LLM_BASE_URL`, `METRIC_ATLAS_LLM_MODEL` — 전체 목록은 [아래 레퍼런스](#runtime-환경변수-레퍼런스) 참고.
 
 ## Runtime 환경변수 레퍼런스
 
@@ -193,8 +196,8 @@ CLI 대신 환경변수를 직접 설정하고 싶다면: `METRIC_ATLAS_LLM_API_
 | `METRIC_ATLAS_GA4_HEALTH_WINDOW_DAYS` | `30` | Health 리포트가 다루는 GA4 데이터 기간(일). |
 | `METRIC_ATLAS_GA4_RECENT_WINDOW_HOURS` | `48` | 이 시간 이내에 관측된 이벤트는 "최근 데이터라 변동될 수 있음"으로 표시되고, 확정된 값으로 취급되지 않습니다. |
 | `METRIC_ATLAS_CACHE_TTL_SECONDS` | `300` | 계산된 Health 리포트를 메모리에 캐시해두는 시간(초). 이 시간이 지나야 GA4를 다시 조회합니다. |
-| `METRIC_ATLAS_LLM_API_KEY`(또는 `OPENAI_API_KEY`) | *(없음)* | LLM 키. 없으면 자연어 질의만 비활성화되고 나머지는 그대로 동작합니다. |
-| `METRIC_ATLAS_LLM_PROVIDER` | `openai` | `openai` 또는 `anthropic`. |
+| `METRIC_ATLAS_LLM_API_KEY` | *(없음)* | LLM 키. 없으면 자연어 질의만 비활성화되고 나머지는 그대로 동작합니다. |
+| `METRIC_ATLAS_LLM_PROVIDER` | `openrouter` | `openrouter`, `openai`, 또는 `anthropic`. |
 | `METRIC_ATLAS_LLM_BASE_URL` | provider 기본값 | OpenAI 호환 게이트웨이(OpenRouter, 자체 호스팅 모델 등)나 Anthropic 엔드포인트로 바꿀 때 사용. |
 | `METRIC_ATLAS_LLM_MODEL` | provider 기본값 | 모델명. |
 | `METRIC_ATLAS_LLM_MAX_CANDIDATES` | `20` | 질문 하나당 LLM에 같이 보내는 후보 이벤트 최대 개수. |

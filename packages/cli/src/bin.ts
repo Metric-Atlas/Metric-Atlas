@@ -157,6 +157,11 @@ async function runServe(positionals: string[], values: Map<string, string[]>): P
   return 0;
 }
 
+function resolveCliLlmProvider(value: string | undefined): LlmProviderName {
+  if (value === "anthropic" || value === "openai" || value === "openrouter") return value;
+  return "openrouter";
+}
+
 async function runInitEnv(values: Map<string, string[]>): Promise<number> {
   const outputFile = path.resolve(first(values, "output") ?? ".env.metric-atlas");
   if (!values.has("force") && await fileExists(outputFile)) {
@@ -168,7 +173,7 @@ async function runInitEnv(values: Map<string, string[]>): Promise<number> {
   if (llmApiKeyEnv && !llmApiKey) {
     throw new Error(`Environment variable ${llmApiKeyEnv} is empty or not set.`);
   }
-  const llmProvider: LlmProviderName = first(values, "llm-provider") === "anthropic" ? "anthropic" : "openai";
+  const llmProvider = resolveCliLlmProvider(first(values, "llm-provider"));
   const llmDefaults = LLM_PROVIDER_DEFAULTS[llmProvider];
 
   const lines = [
@@ -213,14 +218,14 @@ async function runSetLlmKey(values: Map<string, string[]>): Promise<number> {
     label: "LLM key",
   });
   // Only touch provider/base-url/model when the caller explicitly asks -- a plain
-  // key rotation (no --provider) must not silently reset an existing anthropic
-  // setup back to the openai defaults.
+  // key rotation (no --provider) must not silently reset an existing provider
+  // setup back to the openrouter defaults.
   const updates = new Map<string, string>([["METRIC_ATLAS_LLM_API_KEY", key]]);
   const providerFlag = first(values, "provider");
   const baseUrlFlag = first(values, "base-url");
   const modelFlag = first(values, "model");
   if (providerFlag) {
-    const provider: LlmProviderName = providerFlag === "anthropic" ? "anthropic" : "openai";
+    const provider = resolveCliLlmProvider(providerFlag);
     const defaults = LLM_PROVIDER_DEFAULTS[provider];
     updates.set("METRIC_ATLAS_LLM_PROVIDER", provider);
     // Switching provider without also passing --base-url/--model would otherwise
@@ -403,8 +408,8 @@ Usage:
   metric-atlas scan [--root DIR] [--include GLOB] [--exclude GLOB] [--detectors ga4,gtm,...] [--build-id ID] [--output FILE | --stdout]
   metric-atlas diff --base FILE --head FILE [--format markdown|json] [--output FILE]
   metric-atlas report --base-ref REF --head-ref REF [--root DIR] [--detectors ga4,gtm,...] [--format markdown|json] [--output FILE] [--manifest-dir DIR] [--fail-on-parse-error]
-  metric-atlas init-env [--output FILE] [--force] [--ga4-property-id ID] [--google-application-credentials FILE] [--llm-provider openai|anthropic] [--llm-base-url URL] [--llm-model MODEL] [--llm-api-key-env ENV_VAR]
-  metric-atlas set-llm-key [--env FILE] (--key VALUE | --key-env ENV_VAR | --key-stdin) [--provider openai|anthropic] [--base-url URL] [--model MODEL]
+  metric-atlas init-env [--output FILE] [--force] [--ga4-property-id ID] [--google-application-credentials FILE] [--llm-provider openrouter|openai|anthropic] [--llm-base-url URL] [--llm-model MODEL] [--llm-api-key-env ENV_VAR]
+  metric-atlas set-llm-key [--env FILE] (--key VALUE | --key-env ENV_VAR | --key-stdin) [--provider openrouter|openai|anthropic] [--base-url URL] [--model MODEL]
   metric-atlas serve [DIST_DIR] [--host HOST] [--port PORT] [--env FILE] [--dashboard-path PATH]
 
 The scanner reads source files and writes only the requested manifest output. It never modifies source files.

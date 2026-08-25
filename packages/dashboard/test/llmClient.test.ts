@@ -14,8 +14,16 @@ function jsonResponse(value: unknown, status = 200): Response {
 }
 
 describe("extractChatContent", () => {
-  it("reads choices[0].message.content from an openai-compatible response", () => {
+  it("reads choices[0].message.content from a chat completions response", () => {
     expect(extractChatContent({ choices: [{ message: { content: "hello" } }] })).toBe("hello");
+  });
+
+  it("reads array, later choice, reasoning, delta, and text fallback content", () => {
+    expect(extractChatContent({ choices: [{ message: { content: [{ type: "text", text: "array hello" }] } }] })).toBe("array hello");
+    expect(extractChatContent({ choices: [{ message: { content: "" } }, { message: { content: "later hello" } }] })).toBe("later hello");
+    expect(extractChatContent({ choices: [{ message: { content: "", reasoning: "reasoning hello" } }] })).toBe("reasoning hello");
+    expect(extractChatContent({ choices: [{ delta: { content: "delta hello" } }] })).toBe("delta hello");
+    expect(extractChatContent({ choices: [{ text: "text hello" }] })).toBe("text hello");
   });
 
   it("returns an empty string for shapes it cannot parse", () => {
@@ -90,14 +98,14 @@ describe("callRuntimeLlm (server relay path)", () => {
     const fetcher = (async (url: string | URL | Request, init?: RequestInit) => {
       capturedUrl = String(url);
       capturedBody = JSON.parse(String(init?.body));
-      return jsonResponse({ provider: "openai-compatible", model: "gpt-4o-mini", content: "설명입니다." });
+      return jsonResponse({ model: "openrouter/free", content: "설명입니다." });
     }) as typeof fetch;
 
     const result = await callRuntimeLlm({ question: "구매 클릭은?", analysisType: "event_count", candidates: [] }, fetcher);
 
     expect(capturedUrl).toBe("/__metric-atlas/api/llm/generate");
     expect(capturedBody).toMatchObject({ question: "구매 클릭은?" });
-    expect(result).toEqual({ provider: "openai-compatible", model: "gpt-4o-mini", content: "설명입니다." });
+    expect(result).toEqual({ provider: "openrouter", model: "openrouter/free", content: "설명입니다." });
   });
 
   it("throws LlmRequestError with the server's error code on failure", async () => {
@@ -122,6 +130,17 @@ describe("callRuntimeLlm (server relay path)", () => {
       message: expect.stringContaining("Metric Atlas Runtime에 연결할 수 없습니다")
     });
   });
+
+  it("maps a successful but empty runtime response to a user-facing error", async () => {
+    const fetcher = (async () => jsonResponse({ provider: "openrouter", model: "empty-model", content: "" })) as typeof fetch;
+
+    await expect(
+      callRuntimeLlm({ question: "q", analysisType: "event_count", candidates: [] }, fetcher)
+    ).rejects.toMatchObject({
+      code: "llm_empty_response",
+      message: expect.stringContaining("AI가 답변 없이 빈 응답을 보냈습니다")
+    });
+  });
 });
 
 describe("friendlyLlmError", () => {
@@ -129,5 +148,6 @@ describe("friendlyLlmError", () => {
     expect(friendlyLlmError("llm_timeout")).toContain("제한 시간");
     expect(friendlyLlmError("llm_upstream_error", "invalid api key")).toContain("API 키");
     expect(friendlyLlmError("llm_network_error", "ENOTFOUND")).toContain("연결하지 못했습니다");
+    expect(friendlyLlmError("llm_empty_response", "finish_reason=tool_calls")).toContain("모델 이름과 API 키");
   });
 });

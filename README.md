@@ -45,7 +45,7 @@ Served by the Node Runtime at `/__metric-atlas/dashboard`. The first view is **C
 
 ### 🤖 Natural Language Query *(optional)*
 
-Ask questions about your events in plain language. Answers are grounded in the same Health evidence the dashboard shows (code state, GA4 observation, latest counts) so the LLM never claims an event is "collecting fine" without data to back it up. Set a key in the Runtime environment — OpenAI or Anthropic — with `metric-atlas init-env` or `metric-atlas set-llm-key` (see [LLM setup](#natural-language-query-setup-llm-optional) below). Everything else — search, filters, Health — works without an LLM.
+Ask questions about your events in plain language. Answers are grounded in the same Health evidence the dashboard shows (code state, GA4 observation, latest counts) so the LLM never claims an event is "collecting fine" without data to back it up. Set a key in the Runtime environment — OpenRouter by default, or OpenAI/Anthropic directly — with `metric-atlas init-env` or `metric-atlas set-llm-key` (see [LLM setup](#natural-language-query-setup-llm-optional) below). Everything else — search, filters, Health — works without an LLM.
 
 ### ✅ PR Analytics Change Report — zero-server
 
@@ -159,27 +159,30 @@ curl http://127.0.0.1:8787/__metric-atlas/api/health
 
 ## Natural language query setup (LLM, optional)
 
-Add a key to the same `.env.metric-atlas` created above, without ever pasting the secret into a file (`--key-env` reads it from a shell variable you already have set; `--key-stdin` reads it from stdin):
+Add a key to the same `.env.metric-atlas` created above, without ever pasting the secret into a file (`--key-env` reads it from a shell variable you already have set; `--key-stdin` reads it from stdin). The default provider is [OpenRouter](https://openrouter.ai) (a gateway with a free tier and access to many models):
+
+```bash
+export MY_OPENROUTER_KEY=sk-or-...
+npx metric-atlas set-llm-key --key-env MY_OPENROUTER_KEY
+```
+
+OpenAI or Anthropic (Claude) directly work the same way — pass `--provider`:
 
 ```bash
 export MY_OPENAI_KEY=sk-...
-npx metric-atlas set-llm-key --key-env MY_OPENAI_KEY
-```
+npx metric-atlas set-llm-key --key-env MY_OPENAI_KEY --provider openai
 
-Anthropic (Claude) works the same way — pass `--provider anthropic` and the matching key:
-
-```bash
 export MY_ANTHROPIC_KEY=sk-ant-...
 npx metric-atlas set-llm-key --key-env MY_ANTHROPIC_KEY --provider anthropic
 ```
 
-Restart `metric-atlas serve` (or redeploy the Runtime) and it picks up the new key. Any OpenAI-compatible gateway (OpenRouter, a self-hosted model, etc.) also works via `--base-url`:
+Restart `metric-atlas serve` (or redeploy the Runtime) and it picks up the new key. Any other OpenAI-compatible endpoint (a different gateway, a self-hosted model, etc.) works too via `--base-url`/`--model`:
 
 ```bash
-npx metric-atlas set-llm-key --key-env MY_KEY --base-url https://openrouter.ai/api/v1 --model openrouter/some-model
+npx metric-atlas set-llm-key --key-env MY_KEY --base-url https://your-endpoint/v1 --model some-model
 ```
 
-Prefer setting the env vars directly instead of using the CLI? `METRIC_ATLAS_LLM_API_KEY` (or `OPENAI_API_KEY`), `METRIC_ATLAS_LLM_PROVIDER` (`openai` default, or `anthropic`), `METRIC_ATLAS_LLM_BASE_URL`, `METRIC_ATLAS_LLM_MODEL` — full reference [below](#runtime-environment-variables-reference).
+Prefer setting the env vars directly instead of using the CLI? `METRIC_ATLAS_LLM_API_KEY`, `METRIC_ATLAS_LLM_PROVIDER` (`openrouter` default, or `openai`/`anthropic`), `METRIC_ATLAS_LLM_BASE_URL`, `METRIC_ATLAS_LLM_MODEL` — full reference [below](#runtime-environment-variables-reference).
 
 ## Runtime environment variables (reference)
 
@@ -193,8 +196,8 @@ Every variable below is read by the Node Runtime process only (`metric-atlas ser
 | `METRIC_ATLAS_GA4_HEALTH_WINDOW_DAYS` | `30` | How many days of GA4 data the Health report covers. |
 | `METRIC_ATLAS_GA4_RECENT_WINDOW_HOURS` | `48` | Events observed within this window are flagged "recent data may still change" instead of treated as final. |
 | `METRIC_ATLAS_CACHE_TTL_SECONDS` | `300` | How long a computed Health report stays cached in memory before the Runtime queries GA4 again. |
-| `METRIC_ATLAS_LLM_API_KEY` (or `OPENAI_API_KEY`) | *(none)* | LLM key. Without it, natural language query is disabled — everything else keeps working. |
-| `METRIC_ATLAS_LLM_PROVIDER` | `openai` | `openai` or `anthropic`. |
+| `METRIC_ATLAS_LLM_API_KEY` | *(none)* | LLM key. Without it, natural language query is disabled — everything else keeps working. |
+| `METRIC_ATLAS_LLM_PROVIDER` | `openrouter` | `openrouter`, `openai`, or `anthropic`. |
 | `METRIC_ATLAS_LLM_BASE_URL` | provider default | Override to point at an OpenAI-compatible gateway (OpenRouter, a self-hosted model, etc.) or Anthropic's endpoint. |
 | `METRIC_ATLAS_LLM_MODEL` | provider default | Model name. |
 | `METRIC_ATLAS_LLM_MAX_CANDIDATES` | `20` | Max number of candidate events sent to the LLM per question. |
