@@ -108,7 +108,14 @@ describe("Metric Atlas Local Node Runtime", () => {
       expect(upstreamRequest?.url).toBe("https://llm.example.test/v1/chat/completions");
       expect(upstreamRequest?.init?.headers).toMatchObject({ authorization: "Bearer sk-runtime" });
       expect(sent.model).toBe("demo-model");
+      expect(sent.messages[0].content).toContain("Never claim that an event is collected");
+      expect(sent.messages[0].content).toContain("latestResultStatus is ok");
+      expect(sent.messages[0].content).toContain("do not claim that no registration or setup is needed");
       expect(prompt.candidates).toHaveLength(1);
+      expect(prompt.candidates[0]).toMatchObject({
+        eventKey: "ga4:purchase_click",
+        sourceFile: "src/Button.tsx",
+      });
       expect(JSON.stringify(prompt)).not.toContain("sk-runtime");
     } finally {
       await runtime.close();
@@ -187,6 +194,67 @@ describe("Metric Atlas Local Node Runtime", () => {
       expect(response.status).toBe(200);
       expect(body.content).toBe("기본 URL 호출 성공");
       expect(upstreamRequest?.url).toBe("https://api.openai.com/v1/chat/completions");
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it("returns llm_network_error when the runtime cannot reach the LLM provider", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      throw new Error("ENOTFOUND llm.example.test");
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(502);
+      expect(body.error.code).toBe("llm_network_error");
+      expect(body.error.message).toContain("ENOTFOUND");
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it("returns llm_timeout when the LLM provider request is aborted", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      const error = new Error("operation timed out");
+      error.name = "TimeoutError";
+      throw error;
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(504);
+      expect(body.error.code).toBe("llm_timeout");
     } finally {
       await runtime.close();
     }

@@ -7,6 +7,15 @@ export interface LlmCandidatePayload {
   emitter?: string | undefined;
   parameters?: string[] | undefined;
   sourceFile?: string | undefined;
+  healthBucket?: string | undefined;
+  codeState?: string | undefined;
+  ga4ObservationState?: string | undefined;
+  ga4ManagedState?: string | undefined;
+  latestResultStatus?: string | undefined;
+  latestValue?: number | undefined;
+  qualityFlags?: string[] | undefined;
+  missingCustomDimensions?: string[] | undefined;
+  reviewReason?: string | null | undefined;
 }
 
 export interface LlmRequestPayload {
@@ -21,28 +30,8 @@ export interface LlmSuccess {
   content: string;
 }
 
-export type LlmProvider = "openai" | "anthropic";
-
-/**
- * BYOK 세션 키 (docs/contract-inputs/d-runtime-auth-deployment-options.md #7 허용 조건).
- * React state 등 메모리에만 존재해야 하며 localStorage/sessionStorage에 저장하지 않는다.
- */
-export interface BrowserLlmKey {
-  provider: LlmProvider;
-  apiKey: string;
-  baseUrl: string;
-  model: string;
-}
-
-export const LLM_PROVIDER_DEFAULTS: Record<LlmProvider, { baseUrl: string; model: string; label: string }> = {
-  openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini", label: "OpenAI" },
-  anthropic: { baseUrl: "https://api.anthropic.com/v1", model: "claude-haiku-4-5-20251001", label: "Anthropic (Claude)" }
-};
-
-const ANTHROPIC_API_VERSION = "2023-06-01";
-
 const SYSTEM_PROMPT =
-  "You help marketers understand analytics events. Use only the supplied event metadata. Do not ask for credentials or source code. Reply in Korean.";
+  "You help marketers understand analytics events. Use only the supplied event metadata and Analytics Health fields. Do not ask for credentials or source code. Never claim that an event is collected, healthy, or needs no setup unless ga4ObservationState is observed and latestResultStatus is ok. If Health fields are missing, unknown, no_rows, unauthorized, unsupported, or error, say the result is not proven and explain the next check. Reply in Korean.";
 
 export function toLlmCandidates(rows: JoinedRow[]): LlmCandidatePayload[] {
   return rows.map((row) => ({
@@ -51,7 +40,18 @@ export function toLlmCandidates(rows: JoinedRow[]): LlmCandidatePayload[] {
     provider: row.event?.analyticsProvider ?? "unknown",
     emitter: row.event?.emitter,
     parameters: row.event?.parameters ?? [],
-    sourceFile: row.event?.source.file
+    sourceFile: row.event?.source.file,
+    healthBucket: row.bucket,
+    codeState: row.health?.codeState,
+    ga4ObservationState: row.health?.ga4ObservationState,
+    ga4ManagedState: row.health?.ga4ManagedState,
+    latestResultStatus: row.health?.latestMeasurement?.resultStatus,
+    latestValue: row.health?.latestMeasurement?.value,
+    qualityFlags: row.health?.latestMeasurement?.qualityFlags ?? [],
+    missingCustomDimensions: row.health?.parameterRegistrationStates
+      .filter((parameter) => parameter.state === "not_registered")
+      .map((parameter) => parameter.parameter),
+    reviewReason: row.health?.reviewReason
   }));
 }
 
@@ -63,20 +63,26 @@ export class LlmRequestError extends Error {
   }
 }
 
-/** Runtime relay path (기본값): 브라우저 -> 이 프로젝트의 Node Runtime -> LLM. 키는 서버 환경변수에만 있다. */
+/** Runtime relay path: 브라우저 -> 이 프로젝트의 Node Runtime -> LLM. 키는 서버 환경변수에만 있다. */
 export async function callRuntimeLlm(
   payload: LlmRequestPayload,
   fetcher: typeof fetch = fetch
 ): Promise<LlmSuccess> {
-  const response = await fetcher("/__metric-atlas/api/llm/generate", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(payload)
-  });
+  let response: Response;
+  try {
+    response = await fetcher("/__metric-atlas/api/llm/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    throw new LlmRequestError("runtime_unavailable", friendlyLlmError("runtime_unavailable", error));
+  }
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const error = (body as { error?: { code?: string; message?: string } } | null)?.error;
-    throw new LlmRequestError(error?.code ?? `http_${response.status}`, error?.message ?? "LLM 요청이 실패했습니다.");
+    const code = error?.code ?? `http_${response.status}`;
+    throw new LlmRequestError(code, friendlyLlmError(code, error?.message));
   }
   const parsed = body as { provider?: string; model?: string; content?: string } | null;
   return {
@@ -84,83 +90,6 @@ export async function callRuntimeLlm(
     model: parsed?.model ?? "unknown",
     content: parsed?.content || "LLM이 빈 응답을 반환했습니다."
   };
-}
-
-/**
- * BYOK 직접 호출 경로. 서버(Runtime)를 거치지 않고 이 브라우저에서 곧바로 provider의
- * 엔드포인트로 요청을 보낸다 — 방문자의 개인 키가 우리 Runtime을 절대 거치지 않는다.
- * docs/contract-inputs/d-runtime-auth-deployment-options.md #7에서 허용한 형태 그대로:
- * 키는 호출자가 넘겨준 메모리 값일 뿐이며 이 함수는 그 값을 어디에도 저장하지 않는다.
- */
-export async function callDirectLlm(
-  payload: LlmRequestPayload,
-  key: BrowserLlmKey,
-  fetcher: typeof fetch = fetch
-): Promise<LlmSuccess> {
-  const defaults = LLM_PROVIDER_DEFAULTS[key.provider];
-  const baseUrl = key.baseUrl.trim().replace(/\/+$/, "") || defaults.baseUrl;
-  const model = key.model.trim() || defaults.model;
-
-  return key.provider === "anthropic"
-    ? callAnthropicDirect(payload, key.apiKey, baseUrl, model, fetcher)
-    : callOpenAiDirect(payload, key.apiKey, baseUrl, model, fetcher);
-}
-
-async function callOpenAiDirect(
-  payload: LlmRequestPayload,
-  apiKey: string,
-  baseUrl: string,
-  model: string,
-  fetcher: typeof fetch
-): Promise<LlmSuccess> {
-  let response: Response;
-  try {
-    response = await fetcher(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify(buildOpenAiChatBody(payload, model))
-    });
-  } catch (error) {
-    throw new LlmRequestError("browser_llm_unreachable", error instanceof Error ? error.message : String(error));
-  }
-
-  const body: unknown = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new LlmRequestError(`llm_upstream_${response.status}`, extractUpstreamError(body) ?? `LLM provider returned ${response.status}`);
-  }
-  return { provider: "openai", model, content: extractChatContent(body) || "LLM이 빈 응답을 반환했습니다." };
-}
-
-async function callAnthropicDirect(
-  payload: LlmRequestPayload,
-  apiKey: string,
-  baseUrl: string,
-  model: string,
-  fetcher: typeof fetch
-): Promise<LlmSuccess> {
-  let response: Response;
-  try {
-    response = await fetcher(`${baseUrl}/messages`, {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": ANTHROPIC_API_VERSION,
-        "content-type": "application/json",
-        // Anthropic's API refuses cross-origin requests unless this header opts in --
-        // it exists specifically for client-side/BYOK use like this one.
-        "anthropic-dangerous-direct-browser-access": "true"
-      },
-      body: JSON.stringify(buildAnthropicMessageBody(payload, model))
-    });
-  } catch (error) {
-    throw new LlmRequestError("browser_llm_unreachable", error instanceof Error ? error.message : String(error));
-  }
-
-  const body: unknown = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new LlmRequestError(`llm_upstream_${response.status}`, extractUpstreamError(body) ?? `LLM provider returned ${response.status}`);
-  }
-  return { provider: "anthropic", model, content: extractAnthropicContent(body) || "LLM이 빈 응답을 반환했습니다." };
 }
 
 export function buildOpenAiChatBody(payload: LlmRequestPayload, model: string) {
@@ -212,4 +141,30 @@ export function extractUpstreamError(value: unknown): string | null {
   if (!error || typeof error !== "object") return null;
   const message = (error as { message?: unknown }).message;
   return typeof message === "string" ? message : null;
+}
+
+export function friendlyLlmError(code: string, detail?: unknown): string {
+  const suffix = typeof detail === "string" && detail.trim() ? `\n\n원문: ${detail.trim()}` : "";
+  if (code === "missing_llm_api_key") {
+    return "서버 Runtime에 LLM API 키가 설정되어 있지 않습니다. 배포 환경의 Secret에 METRIC_ATLAS_LLM_API_KEY를 추가한 뒤 다시 배포해주세요.";
+  }
+  if (code === "invalid_llm_request") {
+    return "질문 또는 이벤트 후보가 비어 있어 AI 설명을 만들 수 없습니다. 이벤트 후보를 선택한 뒤 다시 요청해주세요.";
+  }
+  if (code === "llm_timeout") {
+    return "LLM 제공자가 제한 시간 안에 응답하지 않았습니다. 잠시 후 다시 시도하거나 서버의 METRIC_ATLAS_LLM_TIMEOUT_MS 값을 늘려주세요.";
+  }
+  if (code === "llm_network_error") {
+    return `Runtime 서버가 LLM 제공자에 연결하지 못했습니다. 서버 네트워크, BASE URL, provider 설정을 확인해주세요.${suffix}`;
+  }
+  if (code === "llm_upstream_error" || code.startsWith("llm_upstream_")) {
+    return `LLM 제공자가 요청을 거부했습니다. API 키, 모델명, 결제/쿼터 상태를 확인해주세요.${suffix}`;
+  }
+  if (code === "runtime_unavailable") {
+    return `Metric Atlas Runtime에 연결할 수 없습니다. Runtime 배포 상태와 /__metric-atlas/api/llm/generate 경로를 확인해주세요.${suffix}`;
+  }
+  if (code.startsWith("http_")) {
+    return `Runtime LLM 요청이 실패했습니다. 상태 코드: ${code.replace("http_", "")}.${suffix}`;
+  }
+  return `LLM 요청이 실패했습니다.${suffix}`;
 }

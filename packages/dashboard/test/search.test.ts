@@ -1,9 +1,46 @@
 import { describe, expect, it } from "vitest";
-import { joinRows } from "../src/data";
-import { EMPTY_FILTERS, filterRows, findCandidates, fuzzyMatch } from "../src/search";
+import { EMPTY_FILTERS, filterRows, findCandidates, fuzzyMatch, isBroadAnalysisQuestion } from "../src/search";
+import type { JoinedRow } from "../src/types";
 
-const rows = joinRows();
+const rows = [
+  row("ga4:purchase_click", "purchase_click", "ga4", "gtag", "src/PurchaseButton.tsx", true, "healthy"),
+  row("ga4:custom_card_click", "custom_card_click", "ga4", "gtag", "src/Card.tsx", false, "unresolved"),
+  row("ga4:signup_complete", "signup_complete", "ga4", "gtag", "src/SignupForm.tsx", true, "healthy"),
+  row("ga4:page_view", "page_view", "ga4", "gtag", "src/App.tsx", true, "ga4Managed"),
+  row("gtm:lead_submit", "lead_submit", "unknown", "gtm", "src/LeadForm.tsx", true, "codeOnly")
+] as JoinedRow[];
 const keys = (rs: { eventKey: string }[]) => rs.map((r) => r.eventKey);
+
+function row(
+  eventKey: string,
+  eventName: string,
+  analyticsProvider: string,
+  emitter: string,
+  file: string,
+  overlaySupported: boolean,
+  bucket: JoinedRow["bucket"]
+): JoinedRow {
+  return {
+    eventKey,
+    eventName,
+    event: {
+      eventKey,
+      implementationKey: eventKey,
+      analyticsProvider,
+      emitter,
+      eventName,
+      providerDetectionConfidence: "provider_exact",
+      parameters: [],
+      source: { file, line: 1, column: 1 },
+      overlaySupported,
+      warnings: []
+    },
+    health: null,
+    bindings: [],
+    bucket,
+    gtmRoute: null
+  } as unknown as JoinedRow;
+}
 
 describe("eventName exact search", () => {
   it("matches only the exact event name", () => {
@@ -86,5 +123,17 @@ describe("multiple candidate state", () => {
 
   it("narrows a Korean question to one candidate via local hints", () => {
     expect(keys(findCandidates(rows, "구매 클릭이 지난달보다 늘었나요?"))).toEqual(["ga4:purchase_click"]);
+  });
+});
+
+describe("broad analysis intent", () => {
+  it("treats generic analysis requests as a health summary", () => {
+    expect(isBroadAnalysisQuestion("분석해줘")).toBe(true);
+    expect(isBroadAnalysisQuestion("전체 Analytics Health 요약")).toBe(true);
+  });
+
+  it("keeps event-specific analysis requests on event search", () => {
+    expect(isBroadAnalysisQuestion("구매 분석해줘")).toBe(false);
+    expect(keys(findCandidates(rows, "구매 분석해줘"))).toEqual(["ga4:purchase_click"]);
   });
 });

@@ -6,12 +6,12 @@ Runtime 우선 + Fixture fallback 기반 Local Demo Dashboard입니다. Vite dev
 ## 실행
 
 ```bash
-corepack pnpm install
-corepack pnpm --filter @metric-atlas/demo-react-vite dev        # http://localhost:5180
-corepack pnpm --filter @metric-atlas/demo-react-vite test
-corepack pnpm --filter @metric-atlas/demo-react-vite typecheck
-corepack pnpm --filter @metric-atlas/demo-react-vite build
-corepack pnpm test:e2e
+pnpm install
+pnpm --filter @metric-atlas/demo-react-vite dev        # http://localhost:5180
+pnpm --filter @metric-atlas/demo-react-vite test
+pnpm --filter @metric-atlas/demo-react-vite typecheck
+pnpm --filter @metric-atlas/demo-react-vite build
+pnpm test:e2e
 ```
 
 workspace 인식이 안 되면 repo 루트 `pnpm-workspace.yaml`에 `apps/*`를 추가하세요.
@@ -27,7 +27,7 @@ repo 루트 script 예시 (선택):
 ```json
 {
   "scripts": {
-    "demo": "corepack pnpm --filter @metric-atlas/demo-react-vite dev"
+    "demo": "pnpm --filter @metric-atlas/demo-react-vite dev"
   }
 }
 ```

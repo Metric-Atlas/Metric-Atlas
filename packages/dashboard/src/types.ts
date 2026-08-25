@@ -84,6 +84,8 @@ export interface QueryOutcome {
  */
 export type QueryMode = "chat" | "analysis";
 
+export type QueryScope = "event" | "health_summary";
+
 export type LlmState =
   | { status: "idle" }
   | { status: "loading" }
@@ -101,6 +103,7 @@ export interface QueryTurn {
   id: string;
   question: string;
   mode: QueryMode;
+  scope: QueryScope;
   analysisType: AnalysisType;
   candidates: JoinedRow[];
   chosenKey: string | null;

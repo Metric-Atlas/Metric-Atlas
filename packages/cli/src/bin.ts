@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import process from "node:process";
 import path from "node:path";
 import {
   EventManifest as EventManifestSchema,
@@ -16,7 +17,7 @@ import { serveRuntime } from "@metric-atlas/runtime";
 import { diffManifests, formatMarkdownReport } from "./diff.js";
 
 interface ParsedArguments {
-  command: "scan" | "diff" | "report" | "serve" | "help";
+  command: "scan" | "diff" | "report" | "serve" | "init-env" | "set-llm-key" | "help";
   positionals: string[];
   values: Map<string, string[]>;
 }
@@ -30,6 +31,8 @@ export async function runCli(argv: string[]): Promise<number> {
   if (args.command === "scan") return runScan(args.values);
   if (args.command === "diff") return runDiff(args.values);
   if (args.command === "report") return runReport(args.values);
+  if (args.command === "init-env") return runInitEnv(args.values);
+  if (args.command === "set-llm-key") return runSetLlmKey(args.values);
   return runServe(args.positionals, args.values);
 }
 
@@ -154,6 +157,75 @@ async function runServe(positionals: string[], values: Map<string, string[]>): P
   return 0;
 }
 
+async function runInitEnv(values: Map<string, string[]>): Promise<number> {
+  const outputFile = path.resolve(first(values, "output") ?? ".env.metric-atlas");
+  if (!values.has("force") && await fileExists(outputFile)) {
+    throw new Error(`Refusing to overwrite ${outputFile}. Pass --force to replace it.`);
+  }
+
+  const llmApiKeyEnv = first(values, "llm-api-key-env");
+  const llmApiKey = llmApiKeyEnv ? process.env[llmApiKeyEnv] : "";
+  if (llmApiKeyEnv && !llmApiKey) {
+    throw new Error(`Environment variable ${llmApiKeyEnv} is empty or not set.`);
+  }
+
+  const lines = [
+    "# Metric Atlas Runtime env",
+    "# Keep this file out of Git. It is read by: metric-atlas serve --env ./.env.metric-atlas",
+    "",
+    "# GA4 Health",
+    `METRIC_ATLAS_GA4_PROPERTY_ID=${first(values, "ga4-property-id") ?? ""}`,
+    `GOOGLE_APPLICATION_CREDENTIALS=${first(values, "google-application-credentials") ?? ""}`,
+    "METRIC_ATLAS_GA4_HEALTH_WINDOW_DAYS=30",
+    "METRIC_ATLAS_GA4_RECENT_WINDOW_HOURS=48",
+    "METRIC_ATLAS_CACHE_TTL_SECONDS=300",
+    "",
+    "# LLM",
+    `METRIC_ATLAS_LLM_PROVIDER=${first(values, "llm-provider") ?? "openai"}`,
+    `METRIC_ATLAS_LLM_BASE_URL=${first(values, "llm-base-url") ?? "https://api.openai.com/v1"}`,
+    `METRIC_ATLAS_LLM_API_KEY=${llmApiKey ?? ""}`,
+    `METRIC_ATLAS_LLM_MODEL=${first(values, "llm-model") ?? "gpt-4o-mini"}`,
+    "METRIC_ATLAS_LLM_MAX_CANDIDATES=20",
+    "METRIC_ATLAS_LLM_TIMEOUT_MS=10000",
+    "",
+  ];
+
+  await writeOutput(outputFile, `${lines.join("\n")}`);
+  process.stderr.write(
+    `[metric-atlas] wrote Runtime env template to ${outputFile}\n`,
+  );
+  if (llmApiKeyEnv) {
+    process.stderr.write(
+      `[metric-atlas] copied METRIC_ATLAS_LLM_API_KEY from ${llmApiKeyEnv}; key value was not printed\n`,
+    );
+  }
+  return 0;
+}
+
+async function runSetLlmKey(values: Map<string, string[]>): Promise<number> {
+  const envFile = path.resolve(first(values, "env") ?? ".env.metric-atlas");
+  const key = await resolveSecretValue(values, {
+    direct: "key",
+    env: "key-env",
+    stdin: "key-stdin",
+    label: "LLM key",
+  });
+  const updates = new Map<string, string>([
+    ["METRIC_ATLAS_LLM_API_KEY", key],
+    ["METRIC_ATLAS_LLM_PROVIDER", first(values, "provider") ?? "openai"],
+    ["METRIC_ATLAS_LLM_BASE_URL", first(values, "base-url") ?? "https://api.openai.com/v1"],
+    ["METRIC_ATLAS_LLM_MODEL", first(values, "model") ?? "gpt-4o-mini"],
+  ]);
+
+  const existing = await readOptionalText(envFile);
+  const next = upsertEnvValues(existing, updates);
+  await writeOutput(envFile, next);
+  process.stderr.write(
+    `[metric-atlas] registered LLM key in ${envFile}; key value was not printed\n`,
+  );
+  return 0;
+}
+
 function parseArguments(argv: string[]): ParsedArguments {
   const commandValue = argv[0];
   if (!commandValue || commandValue === "help" || commandValue === "--help" || commandValue === "-h") {
@@ -163,7 +235,9 @@ function parseArguments(argv: string[]): ParsedArguments {
     commandValue !== "scan" &&
     commandValue !== "diff" &&
     commandValue !== "report" &&
-    commandValue !== "serve"
+    commandValue !== "serve" &&
+    commandValue !== "init-env" &&
+    commandValue !== "set-llm-key"
   ) {
     throw new Error(`Unknown command: ${commandValue}`);
   }
@@ -178,7 +252,12 @@ function parseArguments(argv: string[]): ParsedArguments {
     }
     const [rawKey, inlineValue] = token.slice(2).split("=", 2);
     if (!rawKey) throw new Error(`Invalid option: ${token}`);
-    if (rawKey === "stdout" || rawKey === "fail-on-parse-error") {
+    if (
+      rawKey === "stdout" ||
+      rawKey === "fail-on-parse-error" ||
+      rawKey === "force" ||
+      rawKey === "key-stdin"
+    ) {
       values.set(rawKey, []);
       continue;
     }
@@ -243,6 +322,65 @@ async function writeOutput(file: string, contents: string): Promise<void> {
   await writeFile(file, contents, "utf8");
 }
 
+async function readOptionalText(file: string): Promise<string> {
+  try {
+    return await readFile(file, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+async function fileExists(file: string): Promise<boolean> {
+  try {
+    await readFile(file);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveSecretValue(
+  values: Map<string, string[]>,
+  keys: { direct: string; env: string; stdin: string; label: string },
+): Promise<string> {
+  const sources = [values.has(keys.direct), values.has(keys.env), values.has(keys.stdin)].filter(Boolean).length;
+  if (sources !== 1) {
+    throw new Error(`Pass exactly one of --${keys.direct}, --${keys.env}, or --${keys.stdin}.`);
+  }
+  const value = values.has(keys.direct)
+    ? first(values, keys.direct)
+    : values.has(keys.env)
+      ? process.env[required(values, keys.env)]
+      : await readStdin();
+  const trimmed = value?.trim();
+  if (!trimmed) throw new Error(`${keys.label} is empty.`);
+  return trimmed;
+}
+
+async function readStdin(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+function upsertEnvValues(contents: string, updates: Map<string, string>): string {
+  const seen = new Set<string>();
+  const lines = contents ? contents.split(/\r?\n/) : [];
+  const next = lines.map((line) => {
+    const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=/);
+    const key = match?.[1];
+    if (!key || !updates.has(key)) return line;
+    seen.add(key);
+    return `${key}=${updates.get(key) ?? ""}`;
+  });
+  for (const [key, value] of updates) {
+    if (!seen.has(key)) next.push(`${key}=${value}`);
+  }
+  return `${next.filter((line, index) => line !== "" || index < next.length - 1).join("\n")}\n`;
+}
+
 function helpText(): string {
   return `Metric Atlas scanner and manifest diff
 
@@ -250,11 +388,15 @@ Usage:
   metric-atlas scan [--root DIR] [--include GLOB] [--exclude GLOB] [--detectors ga4,gtm,...] [--build-id ID] [--output FILE | --stdout]
   metric-atlas diff --base FILE --head FILE [--format markdown|json] [--output FILE]
   metric-atlas report --base-ref REF --head-ref REF [--root DIR] [--detectors ga4,gtm,...] [--format markdown|json] [--output FILE] [--manifest-dir DIR] [--fail-on-parse-error]
+  metric-atlas init-env [--output FILE] [--force] [--ga4-property-id ID] [--google-application-credentials FILE] [--llm-provider openai|anthropic] [--llm-base-url URL] [--llm-model MODEL] [--llm-api-key-env ENV_VAR]
+  metric-atlas set-llm-key [--env FILE] (--key VALUE | --key-env ENV_VAR | --key-stdin) [--provider openai|anthropic] [--base-url URL] [--model MODEL]
   metric-atlas serve [DIST_DIR] [--host HOST] [--port PORT] [--env FILE] [--dashboard-path PATH]
 
 The scanner reads source files and writes only the requested manifest output. It never modifies source files.
 The local runtime serves built assets, /__metric-atlas/api/*, and the bundled Analytics Health Dashboard
 (default --dashboard-path /__metric-atlas/dashboard, ADR-009) without exposing credentials to the browser bundle.
+Use init-env to create a local Runtime env file. Prefer --llm-api-key-env over passing secrets directly in shell history.
+Use set-llm-key to register or rotate the Runtime LLM key in a local env file. Prefer --key-stdin or --key-env when possible.
 `;
 }
 

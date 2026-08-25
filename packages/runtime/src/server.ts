@@ -208,6 +208,15 @@ interface LlmCandidate {
   emitter?: string;
   parameters?: string[];
   sourceFile?: string;
+  healthBucket?: string;
+  codeState?: string;
+  ga4ObservationState?: string;
+  ga4ManagedState?: string;
+  latestResultStatus?: string;
+  latestValue?: number;
+  qualityFlags?: string[];
+  missingCustomDimensions?: string[];
+  reviewReason?: string | null;
 }
 
 interface LlmGenerateRequest {
@@ -254,27 +263,44 @@ async function generateLlmResponse(
     candidates,
   };
 
-  const upstream =
-    provider === "anthropic"
-      ? await fetch(`${baseUrl}/messages`, {
-          method: "POST",
-          headers: {
-            "x-api-key": apiKey,
-            "anthropic-version": ANTHROPIC_API_VERSION,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify(buildAnthropicMessageBody(question, model)),
-          signal: AbortSignal.timeout(timeoutMs),
-        })
-      : await fetch(`${baseUrl}/chat/completions`, {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${apiKey}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify(buildOpenAiChatBody(question, model)),
-          signal: AbortSignal.timeout(timeoutMs),
-        });
+  let upstream: Response;
+  try {
+    upstream =
+      provider === "anthropic"
+        ? await fetch(`${baseUrl}/messages`, {
+            method: "POST",
+            headers: {
+              "x-api-key": apiKey,
+              "anthropic-version": ANTHROPIC_API_VERSION,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify(buildAnthropicMessageBody(question, model)),
+            signal: AbortSignal.timeout(timeoutMs),
+          })
+        : await fetch(`${baseUrl}/chat/completions`, {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${apiKey}`,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify(buildOpenAiChatBody(question, model)),
+            signal: AbortSignal.timeout(timeoutMs),
+          });
+  } catch (error) {
+    const errorName = error instanceof Error ? error.name : "";
+    const timeout = errorName === "TimeoutError" || errorName === "AbortError";
+    sendJson(response, timeout ? 504 : 502, {
+      error: {
+        code: timeout ? "llm_timeout" : "llm_network_error",
+        message: timeout
+          ? `LLM provider did not respond within ${timeoutMs}ms.`
+          : error instanceof Error
+            ? error.message
+            : String(error),
+      },
+    });
+    return;
+  }
 
   const upstreamBody: unknown = await upstream.json().catch(() => null);
   if (!upstream.ok) {
@@ -295,7 +321,16 @@ async function generateLlmResponse(
 }
 
 const LLM_SYSTEM_PROMPT =
-  "You help marketers understand analytics events. Use only the supplied event metadata. Do not ask for credentials or source code. Reply in Korean.";
+  [
+    "You help marketers understand analytics events.",
+    "Use only the supplied event metadata and Analytics Health fields.",
+    "Do not ask for credentials or source code.",
+    "Never claim that an event is collected, healthy, or needs no setup unless ga4ObservationState is observed and latestResultStatus is ok.",
+    "If Health fields are missing, unknown, no_rows, unauthorized, unsupported, or error, say the result is not proven and explain the next check.",
+    "If missingCustomDimensions is not empty, state that GA4 Custom Dimension registration is still needed for reporting.",
+    "If missingCustomDimensions is empty, say only that no missing custom dimensions were reported in the supplied data; do not claim that no registration or setup is needed.",
+    "Reply in Korean.",
+  ].join(" ");
 
 const ANTHROPIC_API_VERSION = "2023-06-01";
 
