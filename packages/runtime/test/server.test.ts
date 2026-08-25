@@ -151,6 +151,39 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
+  it("parses OpenRouter responses even when whitespace or proxy prelude appears before JSON", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      return new Response(`\\n\\nproxy prelude ${JSON.stringify({ choices: [{ message: { content: "전처리 후 파싱 성공" } }] })}`, {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.content).toBe("전처리 후 파싱 성공");
+    } finally {
+      await runtime.close();
+    }
+  });
+
   it("scans later chat completions choices when the first choice has no text", async () => {
     const root = await temporaryRoot();
     process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";

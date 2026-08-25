@@ -303,12 +303,13 @@ async function generateLlmResponse(
     return;
   }
 
-  const upstreamBody: unknown = await upstream.json().catch(() => null);
+  const parsedUpstream = await readUpstreamJson(upstream);
+  const upstreamBody = parsedUpstream.value;
   if (!upstream.ok) {
     sendJson(response, upstream.status, {
       error: {
         code: "llm_upstream_error",
-        message: extractUpstreamError(upstreamBody) ?? `LLM provider returned ${upstream.status}`,
+        message: extractUpstreamError(upstreamBody) ?? parsedUpstream.error ?? `LLM provider returned ${upstream.status}`,
       },
     });
     return;
@@ -320,7 +321,7 @@ async function generateLlmResponse(
     sendJson(response, 502, {
       error: {
         code: "llm_empty_response",
-        message: `LLM provider returned a successful response without text content.${emptyReason ? ` ${emptyReason}` : ""}`,
+        message: `LLM provider returned a successful response without text content.${parsedUpstream.error ? ` ${parsedUpstream.error}` : ""}${emptyReason ? ` ${emptyReason}` : ""}`,
       },
     });
     return;
@@ -392,6 +393,36 @@ async function readJsonBody<T>(request: IncomingMessage): Promise<T> {
   }
   if (chunks.length === 0) return {} as T;
   return JSON.parse(Buffer.concat(chunks).toString("utf8")) as T;
+}
+
+async function readUpstreamJson(response: Response): Promise<{ value: unknown; error?: string }> {
+  const text = await response.text().catch(() => "");
+  if (!text.trim()) return { value: null, error: "Provider response body was empty." };
+  const parsed = parseJsonLenient(text);
+  if (parsed.ok) return { value: parsed.value };
+  return {
+    value: null,
+    error: `Provider response was not valid JSON. bodyLength=${text.length}; parseError=${parsed.error}`,
+  };
+}
+
+function parseJsonLenient(text: string): { ok: true; value: unknown } | { ok: false; error: string } {
+  const attempts = [text, text.trimStart()];
+  const firstObject = text.search(/[\[{]/);
+  if (firstObject > 0) attempts.push(text.slice(firstObject));
+  for (const attempt of attempts) {
+    try {
+      return { ok: true, value: JSON.parse(attempt) };
+    } catch {
+      // Try the next sanitized shape.
+    }
+  }
+  try {
+    JSON.parse(text);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
+  return { ok: false, error: "unknown parse error" };
 }
 
 function llmMaxCandidates(): number {
