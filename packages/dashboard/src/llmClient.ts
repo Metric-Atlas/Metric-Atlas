@@ -7,6 +7,15 @@ export interface LlmCandidatePayload {
   emitter?: string | undefined;
   parameters?: string[] | undefined;
   sourceFile?: string | undefined;
+  healthBucket?: string | undefined;
+  codeState?: string | undefined;
+  ga4ObservationState?: string | undefined;
+  ga4ManagedState?: string | undefined;
+  latestResultStatus?: string | undefined;
+  latestValue?: number | undefined;
+  qualityFlags?: string[] | undefined;
+  missingCustomDimensions?: string[] | undefined;
+  reviewReason?: string | null | undefined;
 }
 
 export interface LlmRequestPayload {
@@ -22,7 +31,7 @@ export interface LlmSuccess {
 }
 
 const SYSTEM_PROMPT =
-  "You help marketers understand analytics events. Use only the supplied event metadata. Do not ask for credentials or source code. Reply in Korean.";
+  "You help marketers understand analytics events. Use only the supplied event metadata and Analytics Health fields. Do not ask for credentials or source code. Never claim that an event is collected, healthy, or needs no setup unless ga4ObservationState is observed and latestResultStatus is ok. If Health fields are missing, unknown, no_rows, unauthorized, unsupported, or error, say the result is not proven and explain the next check. Reply in Korean.";
 
 export function toLlmCandidates(rows: JoinedRow[]): LlmCandidatePayload[] {
   return rows.map((row) => ({
@@ -31,7 +40,18 @@ export function toLlmCandidates(rows: JoinedRow[]): LlmCandidatePayload[] {
     provider: row.event?.analyticsProvider ?? "unknown",
     emitter: row.event?.emitter,
     parameters: row.event?.parameters ?? [],
-    sourceFile: row.event?.source.file
+    sourceFile: row.event?.source.file,
+    healthBucket: row.bucket,
+    codeState: row.health?.codeState,
+    ga4ObservationState: row.health?.ga4ObservationState,
+    ga4ManagedState: row.health?.ga4ManagedState,
+    latestResultStatus: row.health?.latestMeasurement?.resultStatus,
+    latestValue: row.health?.latestMeasurement?.value,
+    qualityFlags: row.health?.latestMeasurement?.qualityFlags ?? [],
+    missingCustomDimensions: row.health?.parameterRegistrationStates
+      .filter((parameter) => parameter.state === "not_registered")
+      .map((parameter) => parameter.parameter),
+    reviewReason: row.health?.reviewReason
   }));
 }
 

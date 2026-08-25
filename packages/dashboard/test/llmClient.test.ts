@@ -54,9 +54,21 @@ describe("toLlmCandidates", () => {
         source: { file: "src/Button.tsx", line: 10, column: 5 },
         overlaySupported: true
       },
-      health: null,
+      health: {
+        eventKey: "ga4:purchase_click",
+        eventName: "purchase_click",
+        codeState: "detected",
+        ga4ObservationState: "not_observed",
+        ga4ManagedState: "not_managed",
+        parameterRegistrationStates: [
+          { parameter: "location", state: "not_registered" },
+          { parameter: "currency", state: "builtin" }
+        ],
+        latestMeasurement: { resultStatus: "no_rows", qualityFlags: ["recent_data_may_change"] },
+        reviewReason: "No recent GA4 rows."
+      },
       bindings: [],
-      bucket: "noHealth",
+      bucket: "parameterRegistrationGap",
       gtmRoute: null
     };
     const [candidate] = toLlmCandidates([row]);
@@ -64,6 +76,10 @@ describe("toLlmCandidates", () => {
     expect(candidate.eventKey).toBe("ga4:purchase_click");
     expect(candidate.eventName).toBe(row.eventName);
     expect(candidate.provider).toBe(row.event?.analyticsProvider);
+    expect(candidate.healthBucket).toBe("parameterRegistrationGap");
+    expect(candidate.ga4ObservationState).toBe("not_observed");
+    expect(candidate.latestResultStatus).toBe("no_rows");
+    expect(candidate.missingCustomDimensions).toEqual(["location"]);
   });
 });
 

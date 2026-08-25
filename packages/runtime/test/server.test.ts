@@ -108,7 +108,13 @@ describe("Metric Atlas Local Node Runtime", () => {
       expect(upstreamRequest?.url).toBe("https://llm.example.test/v1/chat/completions");
       expect(upstreamRequest?.init?.headers).toMatchObject({ authorization: "Bearer sk-runtime" });
       expect(sent.model).toBe("demo-model");
+      expect(sent.messages[0].content).toContain("Never claim that an event is collected");
+      expect(sent.messages[0].content).toContain("latestResultStatus is ok");
       expect(prompt.candidates).toHaveLength(1);
+      expect(prompt.candidates[0]).toMatchObject({
+        eventKey: "ga4:purchase_click",
+        sourceFile: "src/Button.tsx",
+      });
       expect(JSON.stringify(prompt)).not.toContain("sk-runtime");
     } finally {
       await runtime.close();
