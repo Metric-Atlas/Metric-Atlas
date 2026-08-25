@@ -21,18 +21,25 @@ export interface LlmSuccess {
   content: string;
 }
 
+export type LlmProvider = "openai" | "anthropic";
+
 /**
  * BYOK 세션 키 (docs/contract-inputs/d-runtime-auth-deployment-options.md #7 허용 조건).
  * React state 등 메모리에만 존재해야 하며 localStorage/sessionStorage에 저장하지 않는다.
  */
 export interface BrowserLlmKey {
+  provider: LlmProvider;
   apiKey: string;
   baseUrl: string;
   model: string;
 }
 
-export const DEFAULT_BROWSER_LLM_BASE_URL = "https://api.openai.com/v1";
-export const DEFAULT_BROWSER_LLM_MODEL = "gpt-4o-mini";
+export const LLM_PROVIDER_DEFAULTS: Record<LlmProvider, { baseUrl: string; model: string; label: string }> = {
+  openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini", label: "OpenAI" },
+  anthropic: { baseUrl: "https://api.anthropic.com/v1", model: "claude-haiku-4-5-20251001", label: "Anthropic (Claude)" }
+};
+
+const ANTHROPIC_API_VERSION = "2023-06-01";
 
 const SYSTEM_PROMPT =
   "You help marketers understand analytics events. Use only the supplied event metadata. Do not ask for credentials or source code. Reply in Korean.";
@@ -80,7 +87,7 @@ export async function callRuntimeLlm(
 }
 
 /**
- * BYOK 직접 호출 경로. 서버(Runtime)를 거치지 않고 이 브라우저에서 곧바로 OpenAI 호환
+ * BYOK 직접 호출 경로. 서버(Runtime)를 거치지 않고 이 브라우저에서 곧바로 provider의
  * 엔드포인트로 요청을 보낸다 — 방문자의 개인 키가 우리 Runtime을 절대 거치지 않는다.
  * docs/contract-inputs/d-runtime-auth-deployment-options.md #7에서 허용한 형태 그대로:
  * 키는 호출자가 넘겨준 메모리 값일 뿐이며 이 함수는 그 값을 어디에도 저장하지 않는다.
@@ -90,15 +97,28 @@ export async function callDirectLlm(
   key: BrowserLlmKey,
   fetcher: typeof fetch = fetch
 ): Promise<LlmSuccess> {
-  const baseUrl = key.baseUrl.trim().replace(/\/+$/, "") || DEFAULT_BROWSER_LLM_BASE_URL;
-  const model = key.model.trim() || DEFAULT_BROWSER_LLM_MODEL;
+  const defaults = LLM_PROVIDER_DEFAULTS[key.provider];
+  const baseUrl = key.baseUrl.trim().replace(/\/+$/, "") || defaults.baseUrl;
+  const model = key.model.trim() || defaults.model;
 
+  return key.provider === "anthropic"
+    ? callAnthropicDirect(payload, key.apiKey, baseUrl, model, fetcher)
+    : callOpenAiDirect(payload, key.apiKey, baseUrl, model, fetcher);
+}
+
+async function callOpenAiDirect(
+  payload: LlmRequestPayload,
+  apiKey: string,
+  baseUrl: string,
+  model: string,
+  fetcher: typeof fetch
+): Promise<LlmSuccess> {
   let response: Response;
   try {
     response = await fetcher(`${baseUrl}/chat/completions`, {
       method: "POST",
-      headers: { authorization: `Bearer ${key.apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify(buildChatBody(payload, model))
+      headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify(buildOpenAiChatBody(payload, model))
     });
   } catch (error) {
     throw new LlmRequestError("browser_llm_unreachable", error instanceof Error ? error.message : String(error));
@@ -108,14 +128,42 @@ export async function callDirectLlm(
   if (!response.ok) {
     throw new LlmRequestError(`llm_upstream_${response.status}`, extractUpstreamError(body) ?? `LLM provider returned ${response.status}`);
   }
-  return {
-    provider: "browser-byok",
-    model,
-    content: extractChatContent(body) || "LLM이 빈 응답을 반환했습니다."
-  };
+  return { provider: "openai", model, content: extractChatContent(body) || "LLM이 빈 응답을 반환했습니다." };
 }
 
-export function buildChatBody(payload: LlmRequestPayload, model: string) {
+async function callAnthropicDirect(
+  payload: LlmRequestPayload,
+  apiKey: string,
+  baseUrl: string,
+  model: string,
+  fetcher: typeof fetch
+): Promise<LlmSuccess> {
+  let response: Response;
+  try {
+    response = await fetcher(`${baseUrl}/messages`, {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": ANTHROPIC_API_VERSION,
+        "content-type": "application/json",
+        // Anthropic's API refuses cross-origin requests unless this header opts in --
+        // it exists specifically for client-side/BYOK use like this one.
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify(buildAnthropicMessageBody(payload, model))
+    });
+  } catch (error) {
+    throw new LlmRequestError("browser_llm_unreachable", error instanceof Error ? error.message : String(error));
+  }
+
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new LlmRequestError(`llm_upstream_${response.status}`, extractUpstreamError(body) ?? `LLM provider returned ${response.status}`);
+  }
+  return { provider: "anthropic", model, content: extractAnthropicContent(body) || "LLM이 빈 응답을 반환했습니다." };
+}
+
+export function buildOpenAiChatBody(payload: LlmRequestPayload, model: string) {
   return {
     model,
     temperature: 0.2,
@@ -123,6 +171,15 @@ export function buildChatBody(payload: LlmRequestPayload, model: string) {
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: JSON.stringify(payload) }
     ]
+  };
+}
+
+export function buildAnthropicMessageBody(payload: LlmRequestPayload, model: string) {
+  return {
+    model,
+    max_tokens: 1024,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: JSON.stringify(payload) }]
   };
 }
 
@@ -136,6 +193,17 @@ export function extractChatContent(value: unknown): string {
   if (!message || typeof message !== "object") return "";
   const content = (message as { content?: unknown }).content;
   return typeof content === "string" ? content : "";
+}
+
+export function extractAnthropicContent(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+  const content = (value as { content?: unknown }).content;
+  if (!Array.isArray(content)) return "";
+  const textBlock = content.find(
+    (block): block is { type: "text"; text: string } =>
+      Boolean(block) && typeof block === "object" && (block as { type?: unknown }).type === "text"
+  );
+  return textBlock ? textBlock.text : "";
 }
 
 export function extractUpstreamError(value: unknown): string | null {

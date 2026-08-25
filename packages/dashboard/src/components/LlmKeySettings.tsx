@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { C } from "../labels";
 import { card, fieldLabel, input, sectionTitle } from "../ui";
-import { DEFAULT_BROWSER_LLM_BASE_URL, DEFAULT_BROWSER_LLM_MODEL, type BrowserLlmKey } from "../llmClient";
+import { LLM_PROVIDER_DEFAULTS, type BrowserLlmKey, type LlmProvider } from "../llmClient";
+
+const PROVIDERS: LlmProvider[] = ["openai", "anthropic"];
 
 /**
  * 서버 환경변수(METRIC_ATLAS_LLM_API_KEY)가 없을 때만 노출되는 BYOK 입력 패널.
@@ -14,17 +16,26 @@ export function LlmKeySettings(props: {
   onClear: () => void;
   onClose: () => void;
 }) {
+  const [provider, setProvider] = useState<LlmProvider>(props.value?.provider ?? "openai");
   const [apiKey, setApiKey] = useState(props.value?.apiKey ?? "");
   const [baseUrl, setBaseUrl] = useState(props.value?.baseUrl ?? "");
   const [model, setModel] = useState(props.value?.model ?? "");
+  const defaults = LLM_PROVIDER_DEFAULTS[provider];
+
+  const changeProvider = (next: LlmProvider) => {
+    setProvider(next);
+    setBaseUrl("");
+    setModel("");
+  };
 
   const save = () => {
     const trimmed = apiKey.trim();
     if (!trimmed) return;
     props.onSave({
+      provider,
       apiKey: trimmed,
-      baseUrl: baseUrl.trim() || DEFAULT_BROWSER_LLM_BASE_URL,
-      model: model.trim() || DEFAULT_BROWSER_LLM_MODEL
+      baseUrl: baseUrl.trim() || defaults.baseUrl,
+      model: model.trim() || defaults.model
     });
     props.onClose();
   };
@@ -34,10 +45,31 @@ export function LlmKeySettings(props: {
       <h3 style={sectionTitle}>내 LLM 키로 직접 호출</h3>
       <p style={{ fontSize: 11.5, color: "#3a3d5c", lineHeight: 1.6, margin: "8px 0 12px" }}>
         이 키는 어디에도 저장되지 않고 이 브라우저 탭의 메모리에만 남습니다. 새로고침하면 사라져요.
-        저장하면 이 화면은 Runtime 서버를 거치지 않고 이 브라우저에서 아래 엔드포인트로 직접 요청을 보냅니다.
+        저장하면 이 화면은 Runtime 서버를 거치지 않고 이 브라우저에서 provider의 API로 직접 요청을 보냅니다.
         호출 비용과 남용 책임은 키를 입력한 본인에게 있습니다.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+        <div>
+          <div style={fieldLabel}>PROVIDER</div>
+          <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+            {PROVIDERS.map((p) => {
+              const on = provider === p;
+              return (
+                <button
+                  key={p}
+                  onClick={() => changeProvider(p)}
+                  style={{
+                    flex: 1, border: `1px solid ${on ? C.accentLine : C.line}`, borderRadius: 8,
+                    padding: "8px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    background: on ? C.ink : C.surface, color: on ? "#fff" : C.muted
+                  }}
+                >
+                  {LLM_PROVIDER_DEFAULTS[p].label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <label>
           <div style={fieldLabel}>API KEY</div>
           <input
@@ -46,25 +78,25 @@ export function LlmKeySettings(props: {
             autoFocus
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-..."
+            placeholder={provider === "anthropic" ? "sk-ant-..." : "sk-..."}
           />
         </label>
         <label>
-          <div style={fieldLabel}>BASE URL (선택, 기본 {DEFAULT_BROWSER_LLM_BASE_URL})</div>
+          <div style={fieldLabel}>BASE URL (선택, 기본 {defaults.baseUrl})</div>
           <input
             style={{ ...input, marginTop: 4 }}
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
-            placeholder={DEFAULT_BROWSER_LLM_BASE_URL}
+            placeholder={defaults.baseUrl}
           />
         </label>
         <label>
-          <div style={fieldLabel}>MODEL (선택, 기본 {DEFAULT_BROWSER_LLM_MODEL})</div>
+          <div style={fieldLabel}>MODEL (선택, 기본 {defaults.model})</div>
           <input
             style={{ ...input, marginTop: 4 }}
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            placeholder={DEFAULT_BROWSER_LLM_MODEL}
+            placeholder={defaults.model}
           />
         </label>
       </div>
