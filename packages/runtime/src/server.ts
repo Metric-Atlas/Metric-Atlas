@@ -315,10 +315,11 @@ async function generateLlmResponse(
 
   const content = provider === "anthropic" ? extractAnthropicContent(upstreamBody) : extractChatContent(upstreamBody);
   if (!content.trim()) {
+    const emptyReason = provider === "anthropic" ? describeEmptyAnthropicResponse(upstreamBody) : describeEmptyChatResponse(upstreamBody);
     sendJson(response, 502, {
       error: {
         code: "llm_empty_response",
-        message: "LLM provider returned a successful response without text content.",
+        message: `LLM provider returned a successful response without text content.${emptyReason ? ` ${emptyReason}` : ""}`,
       },
     });
     return;
@@ -403,15 +404,20 @@ function extractChatContent(value: unknown): string {
   if (!value || typeof value !== "object") return "";
   const choices = (value as { choices?: unknown }).choices;
   if (!Array.isArray(choices)) return "";
-  const first = choices[0];
-  if (!first || typeof first !== "object") return "";
-  const message = (first as { message?: unknown }).message;
-  const messageContent = message && typeof message === "object" ? textFromContent((message as { content?: unknown }).content) : "";
-  if (messageContent) return messageContent;
-  const reasoning = message && typeof message === "object" ? (message as { reasoning?: unknown }).reasoning : "";
-  if (typeof reasoning === "string" && reasoning.trim()) return reasoning.trim();
-  const text = (first as { text?: unknown }).text;
-  return typeof text === "string" ? text.trim() : "";
+  for (const choice of choices) {
+    if (!choice || typeof choice !== "object") continue;
+    const message = (choice as { message?: unknown }).message;
+    const delta = (choice as { delta?: unknown }).delta;
+    const messageContent = message && typeof message === "object" ? textFromContent((message as { content?: unknown }).content) : "";
+    if (messageContent) return messageContent;
+    const deltaContent = delta && typeof delta === "object" ? textFromContent((delta as { content?: unknown }).content) : "";
+    if (deltaContent) return deltaContent;
+    const reasoning = message && typeof message === "object" ? (message as { reasoning?: unknown }).reasoning : "";
+    if (typeof reasoning === "string" && reasoning.trim()) return reasoning.trim();
+    const text = (choice as { text?: unknown }).text;
+    if (typeof text === "string" && text.trim()) return text.trim();
+  }
+  return "";
 }
 
 function extractAnthropicContent(value: unknown): string {
@@ -431,6 +437,41 @@ function textFromContent(content: unknown): string {
     })
     .filter(Boolean)
     .join("\n");
+}
+
+function describeEmptyChatResponse(value: unknown): string {
+  if (!value || typeof value !== "object") return "Provider body was not an object.";
+  const choices = (value as { choices?: unknown }).choices;
+  if (!Array.isArray(choices)) return "No choices array was present.";
+  if (choices.length === 0) return "Choices array was empty.";
+  const hints = choices
+    .map((choice, index) => {
+      if (!choice || typeof choice !== "object") return `choice[${index}]: not_object`;
+      const finishReason = (choice as { finish_reason?: unknown }).finish_reason;
+      const message = (choice as { message?: unknown }).message;
+      const messageObject = message && typeof message === "object" ? message : null;
+      const refusal = messageObject ? (messageObject as { refusal?: unknown }).refusal : undefined;
+      const toolCalls = messageObject ? (messageObject as { tool_calls?: unknown }).tool_calls : undefined;
+      const parts = [
+        typeof finishReason === "string" ? `finish_reason=${finishReason}` : "",
+        typeof refusal === "string" && refusal.trim() ? "refusal=present" : "",
+        Array.isArray(toolCalls) && toolCalls.length > 0 ? `tool_calls=${toolCalls.length}` : "",
+      ].filter(Boolean);
+      return parts.length > 0 ? `choice[${index}]: ${parts.join(", ")}` : "";
+    })
+    .filter(Boolean);
+  return hints.length > 0 ? hints.join("; ") : `choices=${choices.length}, but no text-like fields were present.`;
+}
+
+function describeEmptyAnthropicResponse(value: unknown): string {
+  if (!value || typeof value !== "object") return "Provider body was not an object.";
+  const stopReason = (value as { stop_reason?: unknown }).stop_reason;
+  const content = (value as { content?: unknown }).content;
+  const hints = [
+    typeof stopReason === "string" ? `stop_reason=${stopReason}` : "",
+    Array.isArray(content) ? `content_blocks=${content.length}` : "No content array was present.",
+  ].filter(Boolean);
+  return hints.join("; ");
 }
 
 function extractUpstreamError(value: unknown): string | null {

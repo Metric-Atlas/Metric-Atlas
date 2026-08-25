@@ -152,6 +152,41 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
+  it("scans later OpenAI-compatible choices when the first choice has no text", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      return jsonResponse({
+        choices: [
+          { message: { content: "" }, finish_reason: "length" },
+          { message: { content: "두 번째 choice 응답입니다." }, finish_reason: "stop" },
+        ],
+      });
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.content).toBe("두 번째 choice 응답입니다.");
+    } finally {
+      await runtime.close();
+    }
+  });
+
   it("falls back to reasoning text for OpenAI-compatible responses with empty content", async () => {
     const root = await temporaryRoot();
     process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
@@ -191,7 +226,7 @@ describe("Metric Atlas Local Node Runtime", () => {
       if (requestUrl.startsWith("http://")) {
         return originalFetch(url, init);
       }
-      return jsonResponse({ choices: [{ message: { content: "" } }] });
+      return jsonResponse({ choices: [{ finish_reason: "stop", message: { content: "" } }] });
     }) as typeof fetch;
 
     const runtime = await serveRuntime({ root, port: 0 });
@@ -207,6 +242,42 @@ describe("Metric Atlas Local Node Runtime", () => {
 
       expect(response.status).toBe(502);
       expect(body.error.code).toBe("llm_empty_response");
+      expect(body.error.message).toContain("finish_reason=stop");
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it("includes refusal and tool-call hints when an OpenAI-compatible response has no text", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      return jsonResponse({
+        choices: [{ finish_reason: "tool_calls", message: { content: "", refusal: "blocked", tool_calls: [{ id: "call_1" }] } }],
+      });
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(502);
+      expect(body.error.code).toBe("llm_empty_response");
+      expect(body.error.message).toContain("finish_reason=tool_calls");
+      expect(body.error.message).toContain("refusal=present");
+      expect(body.error.message).toContain("tool_calls=1");
     } finally {
       await runtime.close();
     }

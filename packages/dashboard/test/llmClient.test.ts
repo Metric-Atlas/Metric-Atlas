@@ -18,6 +18,14 @@ describe("extractChatContent", () => {
     expect(extractChatContent({ choices: [{ message: { content: "hello" } }] })).toBe("hello");
   });
 
+  it("reads array, later choice, reasoning, delta, and text fallback content", () => {
+    expect(extractChatContent({ choices: [{ message: { content: [{ type: "text", text: "array hello" }] } }] })).toBe("array hello");
+    expect(extractChatContent({ choices: [{ message: { content: "" } }, { message: { content: "later hello" } }] })).toBe("later hello");
+    expect(extractChatContent({ choices: [{ message: { content: "", reasoning: "reasoning hello" } }] })).toBe("reasoning hello");
+    expect(extractChatContent({ choices: [{ delta: { content: "delta hello" } }] })).toBe("delta hello");
+    expect(extractChatContent({ choices: [{ text: "text hello" }] })).toBe("text hello");
+  });
+
   it("returns an empty string for shapes it cannot parse", () => {
     expect(extractChatContent(null)).toBe("");
     expect(extractChatContent({})).toBe("");
@@ -140,6 +148,6 @@ describe("friendlyLlmError", () => {
     expect(friendlyLlmError("llm_timeout")).toContain("제한 시간");
     expect(friendlyLlmError("llm_upstream_error", "invalid api key")).toContain("API 키");
     expect(friendlyLlmError("llm_network_error", "ENOTFOUND")).toContain("연결하지 못했습니다");
-    expect(friendlyLlmError("llm_empty_response")).toContain("본문이 비어 있습니다");
+    expect(friendlyLlmError("llm_empty_response", "finish_reason=tool_calls")).toContain("finish_reason=tool_calls");
   });
 });
