@@ -254,27 +254,44 @@ async function generateLlmResponse(
     candidates,
   };
 
-  const upstream =
-    provider === "anthropic"
-      ? await fetch(`${baseUrl}/messages`, {
-          method: "POST",
-          headers: {
-            "x-api-key": apiKey,
-            "anthropic-version": ANTHROPIC_API_VERSION,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify(buildAnthropicMessageBody(question, model)),
-          signal: AbortSignal.timeout(timeoutMs),
-        })
-      : await fetch(`${baseUrl}/chat/completions`, {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${apiKey}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify(buildOpenAiChatBody(question, model)),
-          signal: AbortSignal.timeout(timeoutMs),
-        });
+  let upstream: Response;
+  try {
+    upstream =
+      provider === "anthropic"
+        ? await fetch(`${baseUrl}/messages`, {
+            method: "POST",
+            headers: {
+              "x-api-key": apiKey,
+              "anthropic-version": ANTHROPIC_API_VERSION,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify(buildAnthropicMessageBody(question, model)),
+            signal: AbortSignal.timeout(timeoutMs),
+          })
+        : await fetch(`${baseUrl}/chat/completions`, {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${apiKey}`,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify(buildOpenAiChatBody(question, model)),
+            signal: AbortSignal.timeout(timeoutMs),
+          });
+  } catch (error) {
+    const errorName = error instanceof Error ? error.name : "";
+    const timeout = errorName === "TimeoutError" || errorName === "AbortError";
+    sendJson(response, timeout ? 504 : 502, {
+      error: {
+        code: timeout ? "llm_timeout" : "llm_network_error",
+        message: timeout
+          ? `LLM provider did not respond within ${timeoutMs}ms.`
+          : error instanceof Error
+            ? error.message
+            : String(error),
+      },
+    });
+    return;
+  }
 
   const upstreamBody: unknown = await upstream.json().catch(() => null);
   if (!upstream.ok) {

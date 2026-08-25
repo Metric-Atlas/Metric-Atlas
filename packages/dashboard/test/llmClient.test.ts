@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  callDirectLlm,
   callRuntimeLlm,
   extractAnthropicContent,
   extractChatContent,
-  LLM_PROVIDER_DEFAULTS,
+  friendlyLlmError,
   LlmRequestError,
   toLlmCandidates
 } from "../src/llmClient";
-import { joinRows } from "../src/data";
+import type { JoinedRow } from "../src/types";
 
 function jsonResponse(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
@@ -41,7 +40,27 @@ describe("extractAnthropicContent", () => {
 
 describe("toLlmCandidates", () => {
   it("maps a JoinedRow into the payload shape the LLM route expects", () => {
-    const row = joinRows().find((r) => r.eventKey === "ga4:purchase_click")!;
+    const row: JoinedRow = {
+      eventKey: "ga4:purchase_click",
+      eventName: "purchase_click",
+      event: {
+        eventKey: "ga4:purchase_click",
+        implementationKey: "impl_purchase",
+        eventName: "purchase_click",
+        emitter: "ga4",
+        analyticsProvider: "ga4",
+        providerDetectionConfidence: "provider_exact",
+        parameters: ["location"],
+        source: { file: "src/Button.tsx", line: 10, column: 5 },
+        bindings: [],
+        overlaySupported: true,
+        warnings: []
+      },
+      health: null,
+      bindings: [],
+      bucket: "noHealth",
+      gtmRoute: null
+    };
     const [candidate] = toLlmCandidates([row]);
     if (!candidate) throw new Error("expected one candidate");
     expect(candidate.eventKey).toBe("ga4:purchase_click");
@@ -72,102 +91,29 @@ describe("callRuntimeLlm (server relay path)", () => {
 
     await expect(
       callRuntimeLlm({ question: "q", analysisType: "event_count", candidates: [] }, fetcher)
-    ).rejects.toMatchObject({ code: "missing_llm_api_key", message: "키가 없습니다." });
-  });
-});
-
-describe("callDirectLlm — openai provider (BYOK, browser -> OpenAI directly)", () => {
-  it("calls the given base URL directly with the visitor's key, bypassing the runtime route entirely", async () => {
-    let capturedUrl: string | null = null;
-    let capturedHeaders: HeadersInit | undefined;
-    const fetcher = (async (url: string | URL | Request, init?: RequestInit) => {
-      capturedUrl = String(url);
-      capturedHeaders = init?.headers;
-      return jsonResponse({ choices: [{ message: { content: "직접 호출 응답" } }] });
-    }) as typeof fetch;
-
-    const result = await callDirectLlm(
-      { question: "구매 클릭은?", analysisType: "event_count", candidates: [] },
-      { provider: "openai", apiKey: "sk-visitor", baseUrl: "https://llm.example.test/v1", model: "custom-model" },
-      fetcher
-    );
-
-    expect(capturedUrl).toBe("https://llm.example.test/v1/chat/completions");
-    expect(capturedHeaders).toMatchObject({ authorization: "Bearer sk-visitor" });
-    expect(result).toEqual({ provider: "openai", model: "custom-model", content: "직접 호출 응답" });
-  });
-
-  it("falls back to the default OpenAI base URL and model when left blank", async () => {
-    let capturedUrl: string | null = null;
-    let capturedBody: { model?: string } = {};
-    const fetcher = (async (url: string | URL | Request, init?: RequestInit) => {
-      capturedUrl = String(url);
-      capturedBody = JSON.parse(String(init?.body));
-      return jsonResponse({ choices: [{ message: { content: "ok" } }] });
-    }) as typeof fetch;
-
-    await callDirectLlm(
-      { question: "q", analysisType: "event_count", candidates: [] },
-      { provider: "openai", apiKey: "sk-visitor", baseUrl: "", model: "" },
-      fetcher
-    );
-
-    expect(capturedUrl).toBe(`${LLM_PROVIDER_DEFAULTS.openai.baseUrl}/chat/completions`);
-    expect(capturedBody.model).toBe(LLM_PROVIDER_DEFAULTS.openai.model);
-  });
-
-  it("throws LlmRequestError when the upstream provider rejects the request", async () => {
-    const fetcher = (async () => jsonResponse({ error: { message: "invalid api key" } }, 401)) as typeof fetch;
-
-    await expect(
-      callDirectLlm(
-        { question: "q", analysisType: "event_count", candidates: [] },
-        { provider: "openai", apiKey: "sk-bad", baseUrl: "", model: "" },
-        fetcher
-      )
-    ).rejects.toBeInstanceOf(LlmRequestError);
-  });
-});
-
-describe("callDirectLlm — anthropic provider (BYOK, browser -> Anthropic directly)", () => {
-  it("calls Anthropic's Messages API with x-api-key auth and the direct-browser-access header", async () => {
-    let capturedUrl: string | null = null;
-    let capturedHeaders: HeadersInit | undefined;
-    let capturedBody: { model?: string; max_tokens?: number } = {};
-    const fetcher = (async (url: string | URL | Request, init?: RequestInit) => {
-      capturedUrl = String(url);
-      capturedHeaders = init?.headers;
-      capturedBody = JSON.parse(String(init?.body));
-      return jsonResponse({ content: [{ type: "text", text: "Claude 응답" }] });
-    }) as typeof fetch;
-
-    const result = await callDirectLlm(
-      { question: "구매 클릭은?", analysisType: "event_count", candidates: [] },
-      { provider: "anthropic", apiKey: "sk-ant-visitor", baseUrl: "", model: "" },
-      fetcher
-    );
-
-    expect(capturedUrl).toBe(`${LLM_PROVIDER_DEFAULTS.anthropic.baseUrl}/messages`);
-    expect(capturedHeaders).toMatchObject({
-      "x-api-key": "sk-ant-visitor",
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true"
+    ).rejects.toMatchObject({
+      code: "missing_llm_api_key",
+      message: expect.stringContaining("Runtime에 LLM API 키가 설정되어 있지 않습니다")
     });
-    expect(capturedBody.model).toBe(LLM_PROVIDER_DEFAULTS.anthropic.model);
-    expect(capturedBody.max_tokens).toBeGreaterThan(0);
-    expect(result).toEqual({ provider: "anthropic", model: LLM_PROVIDER_DEFAULTS.anthropic.model, content: "Claude 응답" });
   });
 
-  it("throws LlmRequestError when Anthropic rejects the request", async () => {
-    const fetcher = (async () =>
-      jsonResponse({ type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } }, 401)) as typeof fetch;
-
+  it("maps network failures to a Korean runtime unavailable message", async () => {
+    const fetcher = (async () => {
+      throw new Error("Failed to fetch");
+    }) as typeof fetch;
     await expect(
-      callDirectLlm(
-        { question: "q", analysisType: "event_count", candidates: [] },
-        { provider: "anthropic", apiKey: "sk-ant-bad", baseUrl: "", model: "" },
-        fetcher
-      )
-    ).rejects.toMatchObject({ message: "invalid x-api-key" });
+      callRuntimeLlm({ question: "q", analysisType: "event_count", candidates: [] }, fetcher)
+    ).rejects.toMatchObject({
+      code: "runtime_unavailable",
+      message: expect.stringContaining("Metric Atlas Runtime에 연결할 수 없습니다")
+    });
+  });
+});
+
+describe("friendlyLlmError", () => {
+  it("maps upstream and timeout errors to user-facing Korean messages", () => {
+    expect(friendlyLlmError("llm_timeout")).toContain("제한 시간");
+    expect(friendlyLlmError("llm_upstream_error", "invalid api key")).toContain("API 키");
+    expect(friendlyLlmError("llm_network_error", "ENOTFOUND")).toContain("연결하지 못했습니다");
   });
 });

@@ -192,6 +192,67 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
+  it("returns llm_network_error when the runtime cannot reach the LLM provider", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      throw new Error("ENOTFOUND llm.example.test");
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(502);
+      expect(body.error.code).toBe("llm_network_error");
+      expect(body.error.message).toContain("ENOTFOUND");
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it("returns llm_timeout when the LLM provider request is aborted", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      const error = new Error("operation timed out");
+      error.name = "TimeoutError";
+      throw error;
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(504);
+      expect(body.error.code).toBe("llm_timeout");
+    } finally {
+      await runtime.close();
+    }
+  });
+
   it("serves generated manifest and health artifacts from conventional runtime locations", async () => {
     const root = await temporaryRoot();
     await mkdir(path.join(root, ".metric-atlas"));

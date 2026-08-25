@@ -3,14 +3,7 @@ import { ANALYSIS_KO, C, HEALTH_META, VALUE_KO, eventKo, providerColors } from "
 import { badge, card, fieldLabel, grid, input, mono, sectionTitle, tag } from "../ui";
 import { findCandidates, MAX_CANDIDATES } from "../search";
 import { evaluateQuery } from "../queryPlan";
-import { LlmKeySettings } from "../components/LlmKeySettings";
-import {
-  callDirectLlm,
-  callRuntimeLlm,
-  LlmRequestError,
-  toLlmCandidates,
-  type BrowserLlmKey
-} from "../llmClient";
+import { callRuntimeLlm, LlmRequestError, toLlmCandidates } from "../llmClient";
 import type { AnalysisType, JoinedRow, QueryMode, QueryOutcome, QuerySeed, QueryTurn } from "../types";
 
 const EXAMPLES = [
@@ -27,8 +20,6 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
   const [activeTurnId, setActiveTurnId] = useState<string | null>(null);
   const [mode, setMode] = useState<QueryMode>("analysis");
   const [inputValue, setInputValue] = useState("");
-  const [browserKey, setBrowserKey] = useState<BrowserLlmKey | null>(null);
-  const [showKeyPanel, setShowKeyPanel] = useState(false);
   const [serverLlmReady, setServerLlmReady] = useState<boolean | null>(null);
   const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
 
@@ -61,7 +52,7 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.seed]);
 
-  const llmAvailable = serverLlmReady === true || browserKey !== null;
+  const llmAvailable = serverLlmReady === true;
   const activeTurn = turns.find((t) => t.id === activeTurnId) ?? turns[turns.length - 1] ?? null;
 
   async function runLlm(turnId: string, turn: QueryTurn) {
@@ -74,7 +65,7 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
       candidates: toLlmCandidates(turn.candidates.slice(0, MAX_CANDIDATES))
     };
     try {
-      const result = browserKey ? await callDirectLlm(payload, browserKey) : await callRuntimeLlm(payload);
+      const result = await callRuntimeLlm(payload);
       setTurns((prev) =>
         prev.map((t) =>
           t.id === turnId
@@ -93,7 +84,7 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
   function resolveModeForTurn(): QueryMode {
     if (mode === "chat" && !llmAvailable) {
       setFallbackNotice(
-        "LLM key가 없어 분석 모드로 전환되었습니다. 채팅 모드를 사용하고 싶은 경우 LLM key를 추가해주세요."
+        "Runtime 서버에 LLM 키가 없어 분석 모드로 전환되었습니다. 채팅 모드를 사용하려면 서버 Secret에 METRIC_ATLAS_LLM_API_KEY를 설정해주세요."
       );
       setMode("analysis");
       return "analysis";
@@ -124,17 +115,7 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
     setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, analysisType } : t)));
   }
 
-  const llmNotice = !llmAvailable && serverLlmReady !== null && (
-    <LlmNotice onOpenKeyPanel={() => setShowKeyPanel(true)} />
-  );
-  const keyPanel = showKeyPanel && (
-    <LlmKeySettings
-      value={browserKey}
-      onSave={setBrowserKey}
-      onClear={() => setBrowserKey(null)}
-      onClose={() => setShowKeyPanel(false)}
-    />
-  );
+  const llmNotice = !llmAvailable && serverLlmReady !== null && <LlmNotice />;
   const modal = fallbackNotice && <FallbackModal message={fallbackNotice} onClose={() => setFallbackNotice(null)} />;
 
   if (turns.length === 0) {
@@ -142,7 +123,6 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <EmptyHero value={inputValue} onChange={setInputValue} onSubmit={() => submit(inputValue)} mode={mode} setMode={setMode} />
         {llmNotice}
-        {keyPanel}
         {modal}
       </div>
     );
@@ -165,7 +145,6 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
 
         <div style={{ flex: "none", marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
           {llmNotice}
-          {keyPanel}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -315,28 +294,18 @@ function EmptyHero(props: {
   );
 }
 
-function LlmNotice({ onOpenKeyPanel }: { onOpenKeyPanel: () => void }) {
+function LlmNotice() {
   return (
     <div
       style={{
         padding: "10px 13px", borderRadius: 9, background: C.amberBg, border: "1px solid #f0d9a8",
-        fontSize: 12, color: "#6b4a12", lineHeight: 1.6, display: "flex", flexWrap: "wrap", gap: 8,
-        alignItems: "center", justifyContent: "space-between"
+        fontSize: 12, color: "#6b4a12", lineHeight: 1.6
       }}
     >
       <span>
-        AI 설명을 쓰려면 LLM 키가 필요합니다. Runtime 서버에{" "}
-        <code style={{ fontFamily: mono }}>METRIC_ATLAS_LLM_API_KEY</code> 환경변수를 설정하는 게 기본 방법이에요.
+        AI 설명을 쓰려면 Runtime 서버에 <code style={{ fontFamily: mono }}>METRIC_ATLAS_LLM_API_KEY</code>
+        를 설정해야 합니다. 브라우저에 개인 API 키를 입력하는 방식은 지원하지 않습니다.
       </span>
-      <button
-        onClick={onOpenKeyPanel}
-        style={{
-          border: "1px solid #d9b063", borderRadius: 7, padding: "6px 11px", fontSize: 11.5, fontWeight: 700,
-          cursor: "pointer", background: "#fff", color: "#6b4a12", flex: "none"
-        }}
-      >
-        내 키로 대신 사용하기
-      </button>
     </div>
   );
 }

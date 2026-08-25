@@ -97,4 +97,4 @@ Provider env vars:
 | `METRIC_ATLAS_LLM_BASE_URL` | `https://api.openai.com/v1` (openai) / `https://api.anthropic.com/v1` (anthropic) | any endpoint that speaks the same request/response shape as the selected provider works, e.g. an OpenAI-compatible gateway |
 | `METRIC_ATLAS_LLM_MODEL` | `gpt-4o-mini` (openai) / `claude-haiku-4-5-20251001` (anthropic) | |
 
-`openai` calls `{baseUrl}/chat/completions` (Chat Completions shape); `anthropic` calls `{baseUrl}/messages` (Messages API shape, `x-api-key` auth). The dashboard's own BYOK panel (when no runtime key is configured) mirrors this same provider split and calls the provider directly from the browser instead of relaying through this route.
+`openai` calls `{baseUrl}/chat/completions` (Chat Completions shape); `anthropic` calls `{baseUrl}/messages` (Messages API shape, `x-api-key` auth). The dashboard only uses this Runtime relay path; visitor-supplied browser API keys are not supported.
