@@ -45,7 +45,7 @@ Served by the Node Runtime at `/__metric-atlas/dashboard`. The first view is **C
 
 ### 🤖 Natural Language Query *(optional)*
 
-Bring your own OpenAI-compatible LLM key and ask questions in natural language. Everything else — search, filters, Health — works without an LLM.
+Set an OpenRouter API key on the Runtime server and ask questions in natural language. Everything else — search, filters, Health — works without an LLM.
 
 ### ✅ PR Analytics Change Report — zero-server
 

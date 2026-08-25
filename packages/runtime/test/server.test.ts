@@ -11,7 +11,6 @@ const originalFetch = globalThis.fetch;
 afterEach(async () => {
   globalThis.fetch = originalFetch;
   delete process.env.METRIC_ATLAS_GA4_PROPERTY_ID;
-  delete process.env.OPENAI_API_KEY;
   delete process.env.METRIC_ATLAS_LLM_API_KEY;
   delete process.env.METRIC_ATLAS_LLM_BASE_URL;
   delete process.env.METRIC_ATLAS_LLM_MODEL;
@@ -28,7 +27,7 @@ describe("Metric Atlas Local Node Runtime", () => {
   it("serves static assets and redacts credential values from health", async () => {
     const root = await temporaryRoot();
     await writeFile(path.join(root, "index.html"), "<h1>Metric Atlas</h1>");
-    process.env.OPENAI_API_KEY = "sk-secret";
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-secret";
 
     const runtime = await serveRuntime({ root, port: 0 });
     try {
@@ -46,12 +45,12 @@ describe("Metric Atlas Local Node Runtime", () => {
   it("loads env files only into the Node Runtime process", async () => {
     const root = await temporaryRoot();
     const envFile = path.join(root, ".env.metric-atlas");
-    await writeFile(envFile, "METRIC_ATLAS_GA4_PROPERTY_ID=123456789\nOPENAI_API_KEY='sk-env'\n");
+    await writeFile(envFile, "METRIC_ATLAS_GA4_PROPERTY_ID=123456789\nMETRIC_ATLAS_LLM_API_KEY='sk-env'\n");
 
     await loadEnvFile(envFile);
 
     expect(process.env.METRIC_ATLAS_GA4_PROPERTY_ID).toBe("123456789");
-    expect(process.env.OPENAI_API_KEY).toBe("sk-env");
+    expect(process.env.METRIC_ATLAS_LLM_API_KEY).toBe("sk-env");
   });
 
   it("fails closed for LLM generation when no runtime API key is configured", async () => {
@@ -70,7 +69,7 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
-  it("uses the runtime API key to call an openai-compatible chat completion endpoint", async () => {
+  it("uses the runtime API key to call an OpenRouter chat completion endpoint", async () => {
     const root = await temporaryRoot();
     process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
     process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
@@ -122,6 +121,200 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
+  it("extracts text from chat completions array content responses", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      return jsonResponse({ choices: [{ message: { content: [{ type: "text", text: "배열 content 응답입니다." }] } }] });
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.content).toBe("배열 content 응답입니다.");
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it("parses OpenRouter responses even when whitespace or proxy prelude appears before JSON", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      return new Response(`\n\nproxy prelude ${JSON.stringify({ choices: [{ message: { content: "전처리 후 파싱 성공" } }] })}`, {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.content).toBe("전처리 후 파싱 성공");
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it("scans later chat completions choices when the first choice has no text", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      return jsonResponse({
+        choices: [
+          { message: { content: "" }, finish_reason: "length" },
+          { message: { content: "두 번째 choice 응답입니다." }, finish_reason: "stop" },
+        ],
+      });
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.content).toBe("두 번째 choice 응답입니다.");
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it("falls back to reasoning text for chat completions responses with empty content", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      return jsonResponse({ choices: [{ message: { content: "", reasoning: "reasoning 응답입니다." } }] });
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.content).toBe("reasoning 응답입니다.");
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it("returns llm_empty_response when the LLM provider returns no text", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      return jsonResponse({ choices: [{ finish_reason: "stop", message: { content: "" } }] });
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(502);
+      expect(body.error.code).toBe("llm_empty_response");
+      expect(body.error.message).toContain("finish_reason=stop");
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it("includes refusal and tool-call hints when a chat completions response has no text", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
+    process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      return jsonResponse({
+        choices: [{ finish_reason: "tool_calls", message: { content: "", refusal: "blocked", tool_calls: [{ id: "call_1" }] } }],
+      });
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭은?",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(502);
+      expect(body.error.code).toBe("llm_empty_response");
+      expect(body.error.message).toContain("finish_reason=tool_calls");
+      expect(body.error.message).toContain("refusal=present");
+      expect(body.error.message).toContain("tool_calls=1");
+    } finally {
+      await runtime.close();
+    }
+  });
+
   it("calls Anthropic's Messages API when METRIC_ATLAS_LLM_PROVIDER=anthropic", async () => {
     const root = await temporaryRoot();
     process.env.METRIC_ATLAS_LLM_PROVIDER = "anthropic";
@@ -166,7 +359,7 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
-  it("uses the default LLM base URL when env value is blank", async () => {
+  it("uses the default OpenRouter LLM base URL when env value is blank", async () => {
     const root = await temporaryRoot();
     process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
     process.env.METRIC_ATLAS_LLM_BASE_URL = "";
@@ -192,8 +385,9 @@ describe("Metric Atlas Local Node Runtime", () => {
       const body = await response.json();
 
       expect(response.status).toBe(200);
+      expect(body.provider).toBe("openrouter");
       expect(body.content).toBe("기본 URL 호출 성공");
-      expect(upstreamRequest?.url).toBe("https://api.openai.com/v1/chat/completions");
+      expect(upstreamRequest?.url).toBe("https://openrouter.ai/api/v1/chat/completions");
     } finally {
       await runtime.close();
     }

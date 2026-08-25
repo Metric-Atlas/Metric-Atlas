@@ -45,7 +45,7 @@ Node Runtime이 `/__metric-atlas/dashboard`에서 서빙합니다. 첫 화면은
 
 ### 🤖 자연어 질의 *(선택)*
 
-OpenAI-호환 LLM 키를 직접 연결하면 자연어로 질문할 수 있습니다. 검색·필터·Health는 LLM 없이도 전부 동작합니다.
+OpenRouter API Key를 Runtime 서버에 설정하면 자연어로 질문할 수 있습니다. 검색·필터·Health는 LLM 없이도 전부 동작합니다.
 
 ### ✅ PR Analytics Change Report — 서버 불필요
 
