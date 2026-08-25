@@ -276,4 +276,77 @@ describe("metric-atlas CLI", () => {
 
     expect(await readFile(envFile, "utf8")).toContain("METRIC_ATLAS_LLM_API_KEY=sk-from-stdin");
   });
+
+  it("init-env fills the anthropic base URL/model when --llm-provider anthropic is passed without --llm-base-url/--llm-model", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "metric-atlas-cli-env-"));
+    temporaryDirectories.push(root);
+    const outputFile = path.join(root, ".env.metric-atlas");
+
+    await execute(process.execPath, [cli, "init-env", "--output", outputFile, "--llm-provider", "anthropic"]);
+
+    const contents = await readFile(outputFile, "utf8");
+    expect(contents).toContain("METRIC_ATLAS_LLM_PROVIDER=anthropic");
+    // Regression: this used to stay pinned to the openai defaults regardless of
+    // --llm-provider, pairing provider=anthropic with an api.openai.com base URL.
+    expect(contents).toContain("METRIC_ATLAS_LLM_BASE_URL=https://api.anthropic.com/v1");
+    expect(contents).toContain("METRIC_ATLAS_LLM_MODEL=claude-haiku-4-5-20251001");
+  });
+
+  it("set-llm-key rotating the key alone preserves an existing anthropic provider/base-url/model", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "metric-atlas-cli-key-"));
+    temporaryDirectories.push(root);
+    const envFile = path.join(root, ".env.metric-atlas");
+    await writeFile(
+      envFile,
+      [
+        "METRIC_ATLAS_LLM_API_KEY=old-key",
+        "METRIC_ATLAS_LLM_PROVIDER=anthropic",
+        "METRIC_ATLAS_LLM_BASE_URL=https://api.anthropic.com/v1",
+        "METRIC_ATLAS_LLM_MODEL=claude-haiku-4-5-20251001",
+        "",
+      ].join("\n"),
+    );
+
+    await execute(process.execPath, [cli, "set-llm-key", "--env", envFile, "--key", "sk-rotated"]);
+
+    const contents = await readFile(envFile, "utf8");
+    expect(contents).toContain("METRIC_ATLAS_LLM_API_KEY=sk-rotated");
+    // Regression: a plain key rotation (no --provider) used to silently reset
+    // provider/base-url/model back to the openai defaults.
+    expect(contents).toContain("METRIC_ATLAS_LLM_PROVIDER=anthropic");
+    expect(contents).toContain("METRIC_ATLAS_LLM_BASE_URL=https://api.anthropic.com/v1");
+    expect(contents).toContain("METRIC_ATLAS_LLM_MODEL=claude-haiku-4-5-20251001");
+  });
+
+  it("set-llm-key switching --provider without --base-url/--model updates the endpoint to match", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "metric-atlas-cli-key-"));
+    temporaryDirectories.push(root);
+    const envFile = path.join(root, ".env.metric-atlas");
+    await writeFile(
+      envFile,
+      [
+        "METRIC_ATLAS_LLM_API_KEY=old-key",
+        "METRIC_ATLAS_LLM_PROVIDER=openai",
+        "METRIC_ATLAS_LLM_BASE_URL=https://api.openai.com/v1",
+        "METRIC_ATLAS_LLM_MODEL=gpt-4o-mini",
+        "",
+      ].join("\n"),
+    );
+
+    await execute(process.execPath, [
+      cli,
+      "set-llm-key",
+      "--env",
+      envFile,
+      "--key",
+      "sk-ant-new",
+      "--provider",
+      "anthropic",
+    ]);
+
+    const contents = await readFile(envFile, "utf8");
+    expect(contents).toContain("METRIC_ATLAS_LLM_PROVIDER=anthropic");
+    expect(contents).toContain("METRIC_ATLAS_LLM_BASE_URL=https://api.anthropic.com/v1");
+    expect(contents).toContain("METRIC_ATLAS_LLM_MODEL=claude-haiku-4-5-20251001");
+  });
 });

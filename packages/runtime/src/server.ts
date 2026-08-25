@@ -348,20 +348,20 @@ const LLM_SYSTEM_PROMPT =
 
 const ANTHROPIC_API_VERSION = "2023-06-01";
 
-const LLM_PROVIDER_DEFAULTS = {
+export const LLM_PROVIDER_DEFAULTS = {
   openrouter: { baseUrl: "https://openrouter.ai/api/v1", model: "openrouter/free" },
   openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
   anthropic: { baseUrl: "https://api.anthropic.com/v1", model: "claude-haiku-4-5-20251001" },
 } as const;
 
-type LlmProvider = keyof typeof LLM_PROVIDER_DEFAULTS;
+export type LlmProviderName = keyof typeof LLM_PROVIDER_DEFAULTS;
 
-function resolveLlmProvider(value: string | undefined): LlmProvider {
+function resolveLlmProvider(value: string | undefined): LlmProviderName {
   if (value === "anthropic" || value === "openai" || value === "openrouter") return value;
   return "openrouter";
 }
 
-function displayLlmProvider(provider: LlmProvider, baseUrl: string): LlmProvider {
+function displayLlmProvider(provider: LlmProviderName, baseUrl: string): LlmProviderName {
   if (provider === "openai" && baseUrl.includes("openrouter.ai")) return "openrouter";
   return provider;
 }

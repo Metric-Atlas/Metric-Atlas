@@ -45,7 +45,7 @@ Served by the Node Runtime at `/__metric-atlas/dashboard`. The first view is **C
 
 ### 🤖 Natural Language Query *(optional)*
 
-Set an OpenRouter API key on the Runtime server and ask questions in natural language. Everything else — search, filters, Health — works without an LLM.
+Ask questions about your events in plain language. Answers are grounded in the same Health evidence the dashboard shows (code state, GA4 observation, latest counts) so the LLM never claims an event is "collecting fine" without data to back it up. Set a key in the Runtime environment — OpenRouter by default, or OpenAI/Anthropic directly — with `metric-atlas init-env` or `metric-atlas set-llm-key` (see [LLM setup](#natural-language-query-setup-llm-optional) below). Everything else — search, filters, Health — works without an LLM.
 
 ### ✅ PR Analytics Change Report — zero-server
 
@@ -138,6 +138,8 @@ GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
 EOF
 ```
 
+Prefer not to hand-write it? Once the CLI is installed (step 3 below), `metric-atlas init-env --ga4-property-id 123456789 --google-application-credentials /absolute/path/to/service-account.json` generates the same file, including sane defaults for the health lookback window and cache TTL (see the [environment variable reference](#runtime-environment-variables-reference)).
+
 3. Build and serve:
 
 ```bash
@@ -154,6 +156,55 @@ curl http://127.0.0.1:8787/__metric-atlas/api/health
 ```
 
 **Deploying the Runtime:** if the platform supports only environment variables, store the key as base64 in `METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64` instead — the Runtime reads it directly. Grant the service account the minimum read permission on the target property only. Never put GA4 credentials in `VITE_*`, browser storage, source code, build output, or logs. Metric Atlas ships no built-in authentication — restrict dashboard access at the network or hosting layer.
+
+## Natural language query setup (LLM, optional)
+
+Add a key to the same `.env.metric-atlas` created above, without ever pasting the secret into a file (`--key-env` reads it from a shell variable you already have set; `--key-stdin` reads it from stdin). The default provider is [OpenRouter](https://openrouter.ai) (a gateway with a free tier and access to many models):
+
+```bash
+export MY_OPENROUTER_KEY=sk-or-...
+npx metric-atlas set-llm-key --key-env MY_OPENROUTER_KEY
+```
+
+OpenAI or Anthropic (Claude) directly work the same way — pass `--provider`:
+
+```bash
+export MY_OPENAI_KEY=sk-...
+npx metric-atlas set-llm-key --key-env MY_OPENAI_KEY --provider openai
+
+export MY_ANTHROPIC_KEY=sk-ant-...
+npx metric-atlas set-llm-key --key-env MY_ANTHROPIC_KEY --provider anthropic
+```
+
+Restart `metric-atlas serve` (or redeploy the Runtime) and it picks up the new key. Any other OpenAI-compatible endpoint (a different gateway, a self-hosted model, etc.) works too via `--base-url`/`--model`:
+
+```bash
+npx metric-atlas set-llm-key --key-env MY_KEY --base-url https://your-endpoint/v1 --model some-model
+```
+
+Prefer setting the env vars directly instead of using the CLI? `METRIC_ATLAS_LLM_API_KEY`, `METRIC_ATLAS_LLM_PROVIDER` (`openrouter` default, or `openai`/`anthropic`), `METRIC_ATLAS_LLM_BASE_URL`, `METRIC_ATLAS_LLM_MODEL` — full reference [below](#runtime-environment-variables-reference).
+
+## Runtime environment variables (reference)
+
+Every variable below is read by the Node Runtime process only (`metric-atlas serve`) — never by the browser bundle. `metric-atlas init-env` writes a `.env.metric-atlas` file with the GA4 and LLM rows pre-filled at these same defaults.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `METRIC_ATLAS_GA4_PROPERTY_ID` | *(none)* | GA4 property to query. Required for live Health data. |
+| `METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64` | *(none)* | Service account JSON, base64-encoded. Use this **or** the variable below — whichever your host supports. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | *(none)* | Absolute path to the service account JSON file on disk. |
+| `METRIC_ATLAS_GA4_HEALTH_WINDOW_DAYS` | `30` | How many days of GA4 data the Health report covers. |
+| `METRIC_ATLAS_GA4_RECENT_WINDOW_HOURS` | `48` | Events observed within this window are flagged "recent data may still change" instead of treated as final. |
+| `METRIC_ATLAS_CACHE_TTL_SECONDS` | `300` | How long a computed Health report stays cached in memory before the Runtime queries GA4 again. |
+| `METRIC_ATLAS_LLM_API_KEY` | *(none)* | LLM key. Without it, natural language query is disabled — everything else keeps working. |
+| `METRIC_ATLAS_LLM_PROVIDER` | `openrouter` | `openrouter`, `openai`, or `anthropic`. |
+| `METRIC_ATLAS_LLM_BASE_URL` | provider default | Override to point at an OpenAI-compatible gateway (OpenRouter, a self-hosted model, etc.) or Anthropic's endpoint. |
+| `METRIC_ATLAS_LLM_MODEL` | provider default | Model name. |
+| `METRIC_ATLAS_LLM_MAX_CANDIDATES` | `20` | Max number of candidate events sent to the LLM per question. |
+| `METRIC_ATLAS_LLM_TIMEOUT_MS` | `10000` | LLM request timeout, in milliseconds. |
+| `METRIC_ATLAS_RUNTIME_HOST` | `127.0.0.1` | Bind address. Set to `0.0.0.0` (or pass `--host 0.0.0.0`) for the Runtime to be reachable from outside its own container. |
+| `METRIC_ATLAS_RUNTIME_PORT` | `8787` | Listen port (or pass `--port` instead). |
+| `METRIC_ATLAS_DASHBOARD_PATH` | `/__metric-atlas/dashboard` | Path the embedded dashboard is served at (or pass `--dashboard-path` instead). |
 
 ## Try the demo locally
 
