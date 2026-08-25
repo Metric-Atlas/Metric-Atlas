@@ -183,6 +183,21 @@ METRIC_ATLAS_CACHE_TTL_SECONDS=300
 EOF
 ```
 
+또는 CLI로 같은 Runtime env 파일을 만들 수 있습니다. LLM key는 커맨드 인자에 직접 쓰지 말고, 현재 셸의 환경변수에서 읽게 합니다.
+
+```bash
+export OPENROUTER_API_KEY=<YOUR_LLM_KEY>
+
+npx metric-atlas init-env \
+  --output ./.env.metric-atlas \
+  --ga4-property-id 123456789 \
+  --google-application-credentials /Users/YOUR_NAME/secure/metric-atlas-reader.json \
+  --llm-provider openai \
+  --llm-base-url https://openrouter.ai/api/v1 \
+  --llm-model openrouter/free \
+  --llm-api-key-env OPENROUTER_API_KEY
+```
+
 Runtime CLI를 설치하고, Metric Atlas가 적용된 앱을 빌드한 뒤 Runtime을 실행합니다.
 
 ```bash
@@ -233,7 +248,7 @@ npx metric-atlas serve ./dist --host 0.0.0.0 --port "$PORT"
 ```
 
 서비스 계정은 대상 GA4 Property에 필요한 최소 읽기 권한으로 추가해야 합니다.
-GA4 인증 정보는 `VITE_*`, 브라우저 저장소, 소스 코드, 빌드 산출물, 로그에 넣지 않습니다.
+GA4/LLM 인증 정보는 `VITE_*`, 브라우저 저장소, 소스 코드, 빌드 산출물, 로그에 넣지 않습니다.
 
 ## Analytics Health Dashboard
 

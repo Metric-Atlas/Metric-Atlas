@@ -153,4 +153,59 @@ describe("metric-atlas CLI", () => {
         .events[0].eventName,
     ).toBe("head_click");
   });
+
+  it("creates a Runtime env file and copies the LLM key from an environment variable without printing it", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "metric-atlas-cli-env-"));
+    temporaryDirectories.push(root);
+    const outputFile = path.join(root, ".env.metric-atlas");
+    const secret = "sk-test-secret";
+
+    const { stderr, stdout } = await execute(
+      process.execPath,
+      [
+        cli,
+        "init-env",
+        "--output",
+        outputFile,
+        "--ga4-property-id",
+        "123456789",
+        "--google-application-credentials",
+        "/secure/reader.json",
+        "--llm-provider",
+        "openai",
+        "--llm-base-url",
+        "https://openrouter.ai/api/v1",
+        "--llm-model",
+        "openrouter/free",
+        "--llm-api-key-env",
+        "METRIC_ATLAS_TEST_LLM_KEY",
+      ],
+      { env: { ...process.env, METRIC_ATLAS_TEST_LLM_KEY: secret } },
+    );
+
+    const contents = await readFile(outputFile, "utf8");
+    expect(contents).toContain("METRIC_ATLAS_GA4_PROPERTY_ID=123456789");
+    expect(contents).toContain("GOOGLE_APPLICATION_CREDENTIALS=/secure/reader.json");
+    expect(contents).toContain("METRIC_ATLAS_LLM_BASE_URL=https://openrouter.ai/api/v1");
+    expect(contents).toContain("METRIC_ATLAS_LLM_API_KEY=sk-test-secret");
+    expect(stdout).not.toContain(secret);
+    expect(stderr).not.toContain(secret);
+    expect(stderr).toContain("key value was not printed");
+  });
+
+  it("refuses to overwrite an existing Runtime env file unless --force is passed", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "metric-atlas-cli-env-"));
+    temporaryDirectories.push(root);
+    const outputFile = path.join(root, ".env.metric-atlas");
+    await writeFile(outputFile, "EXISTING=true\n");
+
+    await expect(
+      execute(process.execPath, [cli, "init-env", "--output", outputFile]),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining("Refusing to overwrite"),
+    });
+
+    await execute(process.execPath, [cli, "init-env", "--output", outputFile, "--force"]);
+    expect(await readFile(outputFile, "utf8")).toContain("METRIC_ATLAS_LLM_PROVIDER=openai");
+  });
 });

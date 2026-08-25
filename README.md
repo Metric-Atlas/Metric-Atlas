@@ -181,6 +181,22 @@ METRIC_ATLAS_CACHE_TTL_SECONDS=300
 EOF
 ```
 
+Or generate the same Runtime env file with the CLI. Do not pass the LLM key as a
+literal command argument; read it from an existing shell environment variable.
+
+```bash
+export OPENROUTER_API_KEY=<YOUR_LLM_KEY>
+
+npx metric-atlas init-env \
+  --output ./.env.metric-atlas \
+  --ga4-property-id 123456789 \
+  --google-application-credentials /Users/YOUR_NAME/secure/metric-atlas-reader.json \
+  --llm-provider openai \
+  --llm-base-url https://openrouter.ai/api/v1 \
+  --llm-model openrouter/free \
+  --llm-api-key-env OPENROUTER_API_KEY
+```
+
 Install the Runtime CLI, then build and serve the instrumented app:
 
 ```bash
@@ -231,7 +247,7 @@ npx metric-atlas serve ./dist --host 0.0.0.0 --port "$PORT"
 ```
 
 Add the service account to the target GA4 Property with the minimum required read permissions.
-Never put GA4 credentials in `VITE_*`, browser storage, source code, build output, or logs.
+Never put GA4/LLM credentials in `VITE_*`, browser storage, source code, build output, or logs.
 
 ## Analytics Health Dashboard
 
