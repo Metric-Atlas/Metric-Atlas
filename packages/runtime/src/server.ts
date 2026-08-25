@@ -334,10 +334,12 @@ const LLM_SYSTEM_PROMPT =
 
 const ANTHROPIC_API_VERSION = "2023-06-01";
 
-const LLM_PROVIDER_DEFAULTS = {
+export const LLM_PROVIDER_DEFAULTS = {
   openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
   anthropic: { baseUrl: "https://api.anthropic.com/v1", model: "claude-haiku-4-5-20251001" },
 } as const;
+
+export type LlmProviderName = keyof typeof LLM_PROVIDER_DEFAULTS;
 
 function buildOpenAiChatBody(question: unknown, model: string) {
   return {

@@ -45,7 +45,7 @@ Served by the Node Runtime at `/__metric-atlas/dashboard`. The first view is **C
 
 ### 🤖 Natural Language Query *(optional)*
 
-Bring your own OpenAI-compatible LLM key and ask questions in natural language. Everything else — search, filters, Health — works without an LLM.
+Ask questions about your events in plain language. Answers are grounded in the same Health evidence the dashboard shows (code state, GA4 observation, latest counts) so the LLM never claims an event is "collecting fine" without data to back it up. Set a key in the Runtime environment — OpenAI or Anthropic — with `metric-atlas init-env` or `metric-atlas set-llm-key` (see [LLM setup](#natural-language-query-setup-llm-optional) below). Everything else — search, filters, Health — works without an LLM.
 
 ### ✅ PR Analytics Change Report — zero-server
 
@@ -154,6 +154,32 @@ curl http://127.0.0.1:8787/__metric-atlas/api/health
 ```
 
 **Deploying the Runtime:** if the platform supports only environment variables, store the key as base64 in `METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64` instead — the Runtime reads it directly. Grant the service account the minimum read permission on the target property only. Never put GA4 credentials in `VITE_*`, browser storage, source code, build output, or logs. Metric Atlas ships no built-in authentication — restrict dashboard access at the network or hosting layer.
+
+## Natural language query setup (LLM, optional)
+
+The key lives only in the Runtime process. There is no "bring your own key" input in the dashboard — the browser never sees it, and requests never leave your Runtime.
+
+Add a key to the same `.env.metric-atlas` created above, without ever pasting the secret into a file (`--key-env` reads it from a shell variable you already have set; `--key-stdin` reads it from stdin):
+
+```bash
+export MY_OPENAI_KEY=sk-...
+npx metric-atlas set-llm-key --key-env MY_OPENAI_KEY
+```
+
+Anthropic (Claude) works the same way — pass `--provider anthropic` and the matching key:
+
+```bash
+export MY_ANTHROPIC_KEY=sk-ant-...
+npx metric-atlas set-llm-key --key-env MY_ANTHROPIC_KEY --provider anthropic
+```
+
+Restart `metric-atlas serve` (or redeploy the Runtime) and it picks up the new key. Any OpenAI-compatible gateway (OpenRouter, a self-hosted model, etc.) also works via `--base-url`:
+
+```bash
+npx metric-atlas set-llm-key --key-env MY_KEY --base-url https://openrouter.ai/api/v1 --model openrouter/some-model
+```
+
+Env var equivalents, for setting these directly instead: `METRIC_ATLAS_LLM_API_KEY` (or `OPENAI_API_KEY`), `METRIC_ATLAS_LLM_PROVIDER` (`openai` default, or `anthropic`), `METRIC_ATLAS_LLM_BASE_URL`, `METRIC_ATLAS_LLM_MODEL`.
 
 ## Try the demo locally
 

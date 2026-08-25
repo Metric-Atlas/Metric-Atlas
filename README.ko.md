@@ -45,7 +45,7 @@ Node Runtime이 `/__metric-atlas/dashboard`에서 서빙합니다. 첫 화면은
 
 ### 🤖 자연어 질의 *(선택)*
 
-OpenAI-호환 LLM 키를 직접 연결하면 자연어로 질문할 수 있습니다. 검색·필터·Health는 LLM 없이도 전부 동작합니다.
+이벤트에 대해 자연어로 질문할 수 있습니다. 답변은 대시보드가 보여주는 것과 같은 Health 근거(코드 상태, GA4 관측 여부, 최근 발생 수)에 기반하므로, 근거 없이 "정상 수집 중"이라고 단정하지 않습니다. Runtime 환경에 키를 설정하면 됩니다 — OpenAI 또는 Anthropic, `metric-atlas init-env`나 `metric-atlas set-llm-key`로 설정 (아래 [LLM 설정](#자연어-질의-설정-llm-선택) 참고). 검색·필터·Health는 LLM 없이도 전부 동작합니다.
 
 ### ✅ PR Analytics Change Report — 서버 불필요
 
@@ -154,6 +154,32 @@ curl http://127.0.0.1:8787/__metric-atlas/api/health
 ```
 
 **Runtime 배포 시:** 플랫폼이 환경변수만 지원하면 키를 base64로 인코딩해 `METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64`에 넣으면 됩니다 — Runtime이 직접 읽습니다. 서비스 계정에는 대상 속성 하나에 최소 읽기 권한만 부여하세요. GA4 credential을 `VITE_*`, 브라우저 저장소, 소스 코드, 빌드 결과, 로그에 절대 넣지 마세요. Metric Atlas에는 자체 로그인이 없으므로 대시보드 접근 제한은 네트워크/호스팅 계층에서 하세요.
+
+## 자연어 질의 설정 (LLM, 선택)
+
+키는 Runtime 프로세스 안에만 존재합니다. 대시보드에는 "내 키 직접 입력" 같은 입력창이 없습니다 — 브라우저는 키를 본 적이 없고, 요청도 Runtime 밖으로 나가지 않습니다.
+
+위에서 만든 `.env.metric-atlas`에 키를 추가하되, 비밀값을 파일에 직접 붙여넣지 않도록 합니다 (`--key-env`는 이미 설정해둔 셸 변수에서 읽고, `--key-stdin`은 표준입력에서 읽습니다):
+
+```bash
+export MY_OPENAI_KEY=sk-...
+npx metric-atlas set-llm-key --key-env MY_OPENAI_KEY
+```
+
+Anthropic(Claude)도 방식은 같습니다 — `--provider anthropic`과 해당 키를 넘기면 됩니다:
+
+```bash
+export MY_ANTHROPIC_KEY=sk-ant-...
+npx metric-atlas set-llm-key --key-env MY_ANTHROPIC_KEY --provider anthropic
+```
+
+`metric-atlas serve`를 재시작하면(또는 Runtime을 재배포하면) 새 키가 적용됩니다. OpenAI 호환 게이트웨이(OpenRouter, 자체 호스팅 모델 등)도 `--base-url`로 그대로 사용할 수 있습니다:
+
+```bash
+npx metric-atlas set-llm-key --key-env MY_KEY --base-url https://openrouter.ai/api/v1 --model openrouter/some-model
+```
+
+환경변수로 직접 설정하고 싶다면: `METRIC_ATLAS_LLM_API_KEY`(또는 `OPENAI_API_KEY`), `METRIC_ATLAS_LLM_PROVIDER`(기본 `openai`, 또는 `anthropic`), `METRIC_ATLAS_LLM_BASE_URL`, `METRIC_ATLAS_LLM_MODEL`.
 
 ## 로컬에서 데모 체험
 

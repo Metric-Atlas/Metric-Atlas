@@ -13,7 +13,7 @@ import {
   type DetectorAdapterName,
   type ScanProjectOptions,
 } from "@metric-atlas/detector";
-import { serveRuntime } from "@metric-atlas/runtime";
+import { LLM_PROVIDER_DEFAULTS, serveRuntime, type LlmProviderName } from "@metric-atlas/runtime";
 import { diffManifests, formatMarkdownReport } from "./diff.js";
 
 interface ParsedArguments {
@@ -168,6 +168,8 @@ async function runInitEnv(values: Map<string, string[]>): Promise<number> {
   if (llmApiKeyEnv && !llmApiKey) {
     throw new Error(`Environment variable ${llmApiKeyEnv} is empty or not set.`);
   }
+  const llmProvider: LlmProviderName = first(values, "llm-provider") === "anthropic" ? "anthropic" : "openai";
+  const llmDefaults = LLM_PROVIDER_DEFAULTS[llmProvider];
 
   const lines = [
     "# Metric Atlas Runtime env",
@@ -181,10 +183,10 @@ async function runInitEnv(values: Map<string, string[]>): Promise<number> {
     "METRIC_ATLAS_CACHE_TTL_SECONDS=300",
     "",
     "# LLM",
-    `METRIC_ATLAS_LLM_PROVIDER=${first(values, "llm-provider") ?? "openai"}`,
-    `METRIC_ATLAS_LLM_BASE_URL=${first(values, "llm-base-url") ?? "https://api.openai.com/v1"}`,
+    `METRIC_ATLAS_LLM_PROVIDER=${llmProvider}`,
+    `METRIC_ATLAS_LLM_BASE_URL=${first(values, "llm-base-url") ?? llmDefaults.baseUrl}`,
     `METRIC_ATLAS_LLM_API_KEY=${llmApiKey ?? ""}`,
-    `METRIC_ATLAS_LLM_MODEL=${first(values, "llm-model") ?? "gpt-4o-mini"}`,
+    `METRIC_ATLAS_LLM_MODEL=${first(values, "llm-model") ?? llmDefaults.model}`,
     "METRIC_ATLAS_LLM_MAX_CANDIDATES=20",
     "METRIC_ATLAS_LLM_TIMEOUT_MS=10000",
     "",
@@ -210,12 +212,25 @@ async function runSetLlmKey(values: Map<string, string[]>): Promise<number> {
     stdin: "key-stdin",
     label: "LLM key",
   });
-  const updates = new Map<string, string>([
-    ["METRIC_ATLAS_LLM_API_KEY", key],
-    ["METRIC_ATLAS_LLM_PROVIDER", first(values, "provider") ?? "openai"],
-    ["METRIC_ATLAS_LLM_BASE_URL", first(values, "base-url") ?? "https://api.openai.com/v1"],
-    ["METRIC_ATLAS_LLM_MODEL", first(values, "model") ?? "gpt-4o-mini"],
-  ]);
+  // Only touch provider/base-url/model when the caller explicitly asks -- a plain
+  // key rotation (no --provider) must not silently reset an existing anthropic
+  // setup back to the openai defaults.
+  const updates = new Map<string, string>([["METRIC_ATLAS_LLM_API_KEY", key]]);
+  const providerFlag = first(values, "provider");
+  const baseUrlFlag = first(values, "base-url");
+  const modelFlag = first(values, "model");
+  if (providerFlag) {
+    const provider: LlmProviderName = providerFlag === "anthropic" ? "anthropic" : "openai";
+    const defaults = LLM_PROVIDER_DEFAULTS[provider];
+    updates.set("METRIC_ATLAS_LLM_PROVIDER", provider);
+    // Switching provider without also passing --base-url/--model would otherwise
+    // leave the previous provider's endpoint paired with the new provider name.
+    updates.set("METRIC_ATLAS_LLM_BASE_URL", baseUrlFlag ?? defaults.baseUrl);
+    updates.set("METRIC_ATLAS_LLM_MODEL", modelFlag ?? defaults.model);
+  } else {
+    if (baseUrlFlag) updates.set("METRIC_ATLAS_LLM_BASE_URL", baseUrlFlag);
+    if (modelFlag) updates.set("METRIC_ATLAS_LLM_MODEL", modelFlag);
+  }
 
   const existing = await readOptionalText(envFile);
   const next = upsertEnvValues(existing, updates);
