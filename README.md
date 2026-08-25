@@ -49,7 +49,7 @@ Ask questions about your events in plain language. Answers are grounded in the s
 
 ### ✅ PR Analytics Change Report — zero-server
 
-GitHub Actions rescans base and head commits and comments the diff on every pull request. Git is the baseline; no database required.
+GitHub Actions rescans base and head commits and comments the diff on every pull request. Git is the baseline; no database required. [Setup](#pr-analytics-change-report-setup) below.
 
 ```text
 Metric Atlas Analytics Change
@@ -138,6 +138,8 @@ GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
 EOF
 ```
 
+Prefer not to hand-write it? Once the CLI is installed (step 3 below), `metric-atlas init-env --ga4-property-id 123456789 --google-application-credentials /absolute/path/to/service-account.json` generates the same file, including sane defaults for the health lookback window and cache TTL (see the [environment variable reference](#runtime-environment-variables-reference)).
+
 3. Build and serve:
 
 ```bash
@@ -156,8 +158,6 @@ curl http://127.0.0.1:8787/__metric-atlas/api/health
 **Deploying the Runtime:** if the platform supports only environment variables, store the key as base64 in `METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64` instead — the Runtime reads it directly. Grant the service account the minimum read permission on the target property only. Never put GA4 credentials in `VITE_*`, browser storage, source code, build output, or logs. Metric Atlas ships no built-in authentication — restrict dashboard access at the network or hosting layer.
 
 ## Natural language query setup (LLM, optional)
-
-The key lives only in the Runtime process. There is no "bring your own key" input in the dashboard — the browser never sees it, and requests never leave your Runtime.
 
 Add a key to the same `.env.metric-atlas` created above, without ever pasting the secret into a file (`--key-env` reads it from a shell variable you already have set; `--key-stdin` reads it from stdin):
 
@@ -179,7 +179,78 @@ Restart `metric-atlas serve` (or redeploy the Runtime) and it picks up the new k
 npx metric-atlas set-llm-key --key-env MY_KEY --base-url https://openrouter.ai/api/v1 --model openrouter/some-model
 ```
 
-Env var equivalents, for setting these directly instead: `METRIC_ATLAS_LLM_API_KEY` (or `OPENAI_API_KEY`), `METRIC_ATLAS_LLM_PROVIDER` (`openai` default, or `anthropic`), `METRIC_ATLAS_LLM_BASE_URL`, `METRIC_ATLAS_LLM_MODEL`.
+Prefer setting the env vars directly instead of using the CLI? `METRIC_ATLAS_LLM_API_KEY` (or `OPENAI_API_KEY`), `METRIC_ATLAS_LLM_PROVIDER` (`openai` default, or `anthropic`), `METRIC_ATLAS_LLM_BASE_URL`, `METRIC_ATLAS_LLM_MODEL` — full reference [below](#runtime-environment-variables-reference).
+
+## PR Analytics Change Report setup
+
+Zero server, zero credentials — it only reads two Git refs and comments the diff. Add `@metric-atlas/cli` to any workflow that runs on `pull_request`:
+
+```yaml
+# .github/workflows/metric-atlas-report.yml
+name: Metric Atlas Analytics Report
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so both refs below can be diffed
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+
+      - run: npm install -D @metric-atlas/cli
+
+      - run: |
+          npx metric-atlas report \
+            --base-ref ${{ github.event.pull_request.base.sha }} \
+            --head-ref ${{ github.event.pull_request.head.sha }} \
+            --output metric-atlas-report.md
+
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("node:fs");
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: fs.readFileSync("metric-atlas-report.md", "utf8"),
+            });
+```
+
+`metric-atlas report` reads the base/head Git trees directly (via `git show`) — it never checks out either commit or touches your working tree, and it never needs the Vite plugin or a build step. Only the GA4/GTM detectors run by default; add others with `--detectors`. For a version that updates the same PR comment instead of posting a new one every push, see this repo's own `.github/workflows/metric-atlas-analytics-report.yml` and `.github/actions/analytics-report/action.yml`.
+
+## Runtime environment variables (reference)
+
+Every variable below is read by the Node Runtime process only (`metric-atlas serve`, or the scanner for the first block) — never by the browser bundle. `metric-atlas init-env` writes a `.env.metric-atlas` file with the GA4 and LLM rows pre-filled at these same defaults.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `METRIC_ATLAS_GA4_PROPERTY_ID` | *(none)* | GA4 property to query. Required for live Health data. |
+| `METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64` | *(none)* | Service account JSON, base64-encoded. Use this **or** the variable below — whichever your host supports. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | *(none)* | Absolute path to the service account JSON file on disk. |
+| `METRIC_ATLAS_GA4_HEALTH_WINDOW_DAYS` | `30` | How many days of GA4 data the Health report covers. |
+| `METRIC_ATLAS_GA4_RECENT_WINDOW_HOURS` | `48` | Events observed within this window are flagged "recent data may still change" instead of treated as final. |
+| `METRIC_ATLAS_CACHE_TTL_SECONDS` | `300` | How long a computed Health report stays cached in memory before the Runtime queries GA4 again. |
+| `METRIC_ATLAS_LLM_API_KEY` (or `OPENAI_API_KEY`) | *(none)* | LLM key. Without it, natural language query is disabled — everything else keeps working. |
+| `METRIC_ATLAS_LLM_PROVIDER` | `openai` | `openai` or `anthropic`. |
+| `METRIC_ATLAS_LLM_BASE_URL` | provider default | Override to point at an OpenAI-compatible gateway (OpenRouter, a self-hosted model, etc.) or Anthropic's endpoint. |
+| `METRIC_ATLAS_LLM_MODEL` | provider default | Model name. |
+| `METRIC_ATLAS_LLM_MAX_CANDIDATES` | `20` | Max number of candidate events sent to the LLM per question. |
+| `METRIC_ATLAS_LLM_TIMEOUT_MS` | `10000` | LLM request timeout, in milliseconds. |
+| `METRIC_ATLAS_RUNTIME_HOST` | `127.0.0.1` | Bind address. Set to `0.0.0.0` (or pass `--host 0.0.0.0`) for the Runtime to be reachable from outside its own container. |
+| `METRIC_ATLAS_RUNTIME_PORT` | `8787` | Listen port (or pass `--port` instead). |
+| `METRIC_ATLAS_DASHBOARD_PATH` | `/__metric-atlas/dashboard` | Path the embedded dashboard is served at (or pass `--dashboard-path` instead). |
 
 ## Try the demo locally
 
