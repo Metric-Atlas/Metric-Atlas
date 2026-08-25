@@ -229,12 +229,12 @@ async function generateLlmResponse(
   request: IncomingMessage,
   response: ServerResponse,
 ): Promise<void> {
-  const apiKey = envValue("METRIC_ATLAS_LLM_API_KEY") ?? envValue("OPENAI_API_KEY");
+  const apiKey = envValue("METRIC_ATLAS_LLM_API_KEY");
   if (!apiKey) {
     sendJson(response, 400, {
       error: {
         code: "missing_llm_api_key",
-        message: "Set METRIC_ATLAS_LLM_API_KEY or OPENAI_API_KEY in the Node Runtime environment.",
+        message: "Set METRIC_ATLAS_LLM_API_KEY in the Node Runtime environment.",
       },
     });
     return;
@@ -252,10 +252,11 @@ async function generateLlmResponse(
     return;
   }
 
-  const provider = envValue("METRIC_ATLAS_LLM_PROVIDER") === "anthropic" ? "anthropic" : "openai";
-  const defaults = LLM_PROVIDER_DEFAULTS[provider];
+  const configuredProvider = resolveLlmProvider(envValue("METRIC_ATLAS_LLM_PROVIDER"));
+  const defaults = LLM_PROVIDER_DEFAULTS[configuredProvider];
   const baseUrl = trimTrailingSlash(envValue("METRIC_ATLAS_LLM_BASE_URL") ?? defaults.baseUrl);
   const model = envValue("METRIC_ATLAS_LLM_MODEL") ?? defaults.model;
+  const responseProvider = displayLlmProvider(configuredProvider, baseUrl);
   const timeoutMs = parsePositiveInteger(process.env.METRIC_ATLAS_LLM_TIMEOUT_MS, 10_000);
   const question = {
     question: body.question,
@@ -266,7 +267,7 @@ async function generateLlmResponse(
   let upstream: Response;
   try {
     upstream =
-      provider === "anthropic"
+      configuredProvider === "anthropic"
         ? await fetch(`${baseUrl}/messages`, {
             method: "POST",
             headers: {
@@ -313,9 +314,9 @@ async function generateLlmResponse(
     return;
   }
 
-  const content = provider === "anthropic" ? extractAnthropicContent(upstreamBody) : extractChatContent(upstreamBody);
+  const content = configuredProvider === "anthropic" ? extractAnthropicContent(upstreamBody) : extractChatContent(upstreamBody);
   if (!content.trim()) {
-    const emptyReason = provider === "anthropic" ? describeEmptyAnthropicResponse(upstreamBody) : describeEmptyChatResponse(upstreamBody);
+    const emptyReason = configuredProvider === "anthropic" ? describeEmptyAnthropicResponse(upstreamBody) : describeEmptyChatResponse(upstreamBody);
     sendJson(response, 502, {
       error: {
         code: "llm_empty_response",
@@ -326,7 +327,7 @@ async function generateLlmResponse(
   }
 
   sendJson(response, 200, {
-    provider,
+    provider: responseProvider,
     model,
     content,
   });
@@ -347,9 +348,22 @@ const LLM_SYSTEM_PROMPT =
 const ANTHROPIC_API_VERSION = "2023-06-01";
 
 const LLM_PROVIDER_DEFAULTS = {
+  openrouter: { baseUrl: "https://openrouter.ai/api/v1", model: "openrouter/free" },
   openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
   anthropic: { baseUrl: "https://api.anthropic.com/v1", model: "claude-haiku-4-5-20251001" },
 } as const;
+
+type LlmProvider = keyof typeof LLM_PROVIDER_DEFAULTS;
+
+function resolveLlmProvider(value: string | undefined): LlmProvider {
+  if (value === "anthropic" || value === "openai" || value === "openrouter") return value;
+  return "openrouter";
+}
+
+function displayLlmProvider(provider: LlmProvider, baseUrl: string): LlmProvider {
+  if (provider === "openai" && baseUrl.includes("openrouter.ai")) return "openrouter";
+  return provider;
+}
 
 function buildOpenAiChatBody(question: unknown, model: string) {
   return {
@@ -522,7 +536,7 @@ function runtimeHealth(root: string): RuntimeHealth {
       ga4ServiceAccountJsonBase64: Boolean(
         process.env.METRIC_ATLAS_GA4_SERVICE_ACCOUNT_JSON_BASE64,
       ),
-      llmApiKey: Boolean(process.env.OPENAI_API_KEY || process.env.METRIC_ATLAS_LLM_API_KEY),
+      llmApiKey: Boolean(process.env.METRIC_ATLAS_LLM_API_KEY),
     },
   };
 }

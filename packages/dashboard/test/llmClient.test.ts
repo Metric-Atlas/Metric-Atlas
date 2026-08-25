@@ -14,7 +14,7 @@ function jsonResponse(value: unknown, status = 200): Response {
 }
 
 describe("extractChatContent", () => {
-  it("reads choices[0].message.content from an openai-compatible response", () => {
+  it("reads choices[0].message.content from a chat completions response", () => {
     expect(extractChatContent({ choices: [{ message: { content: "hello" } }] })).toBe("hello");
   });
 
@@ -98,14 +98,14 @@ describe("callRuntimeLlm (server relay path)", () => {
     const fetcher = (async (url: string | URL | Request, init?: RequestInit) => {
       capturedUrl = String(url);
       capturedBody = JSON.parse(String(init?.body));
-      return jsonResponse({ provider: "openai-compatible", model: "gpt-4o-mini", content: "설명입니다." });
+      return jsonResponse({ model: "openrouter/free", content: "설명입니다." });
     }) as typeof fetch;
 
     const result = await callRuntimeLlm({ question: "구매 클릭은?", analysisType: "event_count", candidates: [] }, fetcher);
 
     expect(capturedUrl).toBe("/__metric-atlas/api/llm/generate");
     expect(capturedBody).toMatchObject({ question: "구매 클릭은?" });
-    expect(result).toEqual({ provider: "openai-compatible", model: "gpt-4o-mini", content: "설명입니다." });
+    expect(result).toEqual({ provider: "openrouter", model: "openrouter/free", content: "설명입니다." });
   });
 
   it("throws LlmRequestError with the server's error code on failure", async () => {
@@ -132,7 +132,7 @@ describe("callRuntimeLlm (server relay path)", () => {
   });
 
   it("maps a successful but empty runtime response to a user-facing error", async () => {
-    const fetcher = (async () => jsonResponse({ provider: "openai", model: "empty-model", content: "" })) as typeof fetch;
+    const fetcher = (async () => jsonResponse({ provider: "openrouter", model: "empty-model", content: "" })) as typeof fetch;
 
     await expect(
       callRuntimeLlm({ question: "q", analysisType: "event_count", candidates: [] }, fetcher)

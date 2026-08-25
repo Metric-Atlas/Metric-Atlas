@@ -39,7 +39,7 @@ Node Runtime이 `/__metric-atlas/dashboard`(변경 가능)에서 서빙하는 �
 
 ### 3. Natural Language Query
 
-사내 LLM 또는 OpenAI-compatible LLM을 연결하면 이벤트와 GA4 결과를 자연어로 조회할 수 있습니다.
+OpenRouter API Key를 Runtime 서버에 설정하면 이벤트와 GA4 결과를 자연어로 조회할 수 있습니다.
 
 이 기능은 **Core MVP의 Release Blocker가 아닙니다.** LLM이 없어도 이벤트 검색·Provider 필터·파일 위치 조회·Analytics Health는 동작합니다.
 
@@ -192,7 +192,7 @@ npx metric-atlas init-env \
   --output ./.env.metric-atlas \
   --ga4-property-id 123456789 \
   --google-application-credentials /Users/YOUR_NAME/secure/metric-atlas-reader.json \
-  --llm-provider openai \
+  --llm-provider openrouter \
   --llm-base-url https://openrouter.ai/api/v1 \
   --llm-model openrouter/free \
   --llm-api-key-env OPENROUTER_API_KEY
@@ -204,7 +204,7 @@ npx metric-atlas init-env \
 npx metric-atlas set-llm-key \
   --env ./.env.metric-atlas \
   --key <YOUR_LLM_KEY> \
-  --provider openai \
+  --provider openrouter \
   --base-url https://openrouter.ai/api/v1 \
   --model openrouter/free
 ```
@@ -215,7 +215,7 @@ npx metric-atlas set-llm-key \
 printf '%s' "$OPENROUTER_API_KEY" | npx metric-atlas set-llm-key \
   --env ./.env.metric-atlas \
   --key-stdin \
-  --provider openai \
+  --provider openrouter \
   --base-url https://openrouter.ai/api/v1 \
   --model openrouter/free
 ```

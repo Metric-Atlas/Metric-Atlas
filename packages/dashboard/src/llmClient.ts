@@ -90,7 +90,7 @@ export async function callRuntimeLlm(
     throw new LlmRequestError("llm_empty_response", friendlyLlmError("llm_empty_response"));
   }
   return {
-    provider: parsed?.provider ?? "openai-compatible",
+    provider: parsed?.provider ?? "openrouter",
     model: parsed?.model ?? "unknown",
     content
   };

@@ -86,15 +86,15 @@ POST /__metric-atlas/api/llm/generate
 GET  /__metric-atlas/dashboard/*   (default path, see --dashboard-path)
 ```
 
-`/llm/generate` calls an LLM provider when `METRIC_ATLAS_LLM_API_KEY` or `OPENAI_API_KEY` is configured in the Node Runtime environment. It fails closed with `missing_llm_api_key` when no runtime key is present.
+`/llm/generate` calls OpenRouter when `METRIC_ATLAS_LLM_API_KEY` is configured in the Node Runtime environment. It fails closed with `missing_llm_api_key` when no runtime key is present.
 
 Provider env vars:
 
 | Variable | Default | Notes |
 |---|---|---|
-| `METRIC_ATLAS_LLM_API_KEY` / `OPENAI_API_KEY` | (required) | API key for the configured provider |
-| `METRIC_ATLAS_LLM_PROVIDER` | `openai` | `openai` or `anthropic`; anything else falls back to `openai` |
-| `METRIC_ATLAS_LLM_BASE_URL` | `https://api.openai.com/v1` (openai) / `https://api.anthropic.com/v1` (anthropic) | any endpoint that speaks the same request/response shape as the selected provider works, e.g. an OpenAI-compatible gateway |
-| `METRIC_ATLAS_LLM_MODEL` | `gpt-4o-mini` (openai) / `claude-haiku-4-5-20251001` (anthropic) | |
+| `METRIC_ATLAS_LLM_API_KEY` | (required) | OpenRouter API key |
+| `METRIC_ATLAS_LLM_PROVIDER` | `openrouter` | Use `openrouter` for the MVP demo |
+| `METRIC_ATLAS_LLM_BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter Chat Completions endpoint base URL |
+| `METRIC_ATLAS_LLM_MODEL` | `openrouter/free` | OpenRouter model id |
 
-`openai` calls `{baseUrl}/chat/completions` (Chat Completions shape); `anthropic` calls `{baseUrl}/messages` (Messages API shape, `x-api-key` auth). The dashboard only uses this Runtime relay path; visitor-supplied browser API keys are not supported.
+`openrouter` calls `{baseUrl}/chat/completions`. The dashboard only uses this Runtime relay path; visitor-supplied browser API keys are not supported.

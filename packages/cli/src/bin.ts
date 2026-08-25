@@ -181,10 +181,10 @@ async function runInitEnv(values: Map<string, string[]>): Promise<number> {
     "METRIC_ATLAS_CACHE_TTL_SECONDS=300",
     "",
     "# LLM",
-    `METRIC_ATLAS_LLM_PROVIDER=${first(values, "llm-provider") ?? "openai"}`,
-    `METRIC_ATLAS_LLM_BASE_URL=${first(values, "llm-base-url") ?? "https://api.openai.com/v1"}`,
+    `METRIC_ATLAS_LLM_PROVIDER=${first(values, "llm-provider") ?? "openrouter"}`,
+    `METRIC_ATLAS_LLM_BASE_URL=${first(values, "llm-base-url") ?? "https://openrouter.ai/api/v1"}`,
     `METRIC_ATLAS_LLM_API_KEY=${llmApiKey ?? ""}`,
-    `METRIC_ATLAS_LLM_MODEL=${first(values, "llm-model") ?? "gpt-4o-mini"}`,
+    `METRIC_ATLAS_LLM_MODEL=${first(values, "llm-model") ?? "openrouter/free"}`,
     "METRIC_ATLAS_LLM_MAX_CANDIDATES=20",
     "METRIC_ATLAS_LLM_TIMEOUT_MS=10000",
     "",
@@ -212,9 +212,9 @@ async function runSetLlmKey(values: Map<string, string[]>): Promise<number> {
   });
   const updates = new Map<string, string>([
     ["METRIC_ATLAS_LLM_API_KEY", key],
-    ["METRIC_ATLAS_LLM_PROVIDER", first(values, "provider") ?? "openai"],
-    ["METRIC_ATLAS_LLM_BASE_URL", first(values, "base-url") ?? "https://api.openai.com/v1"],
-    ["METRIC_ATLAS_LLM_MODEL", first(values, "model") ?? "gpt-4o-mini"],
+    ["METRIC_ATLAS_LLM_PROVIDER", first(values, "provider") ?? "openrouter"],
+    ["METRIC_ATLAS_LLM_BASE_URL", first(values, "base-url") ?? "https://openrouter.ai/api/v1"],
+    ["METRIC_ATLAS_LLM_MODEL", first(values, "model") ?? "openrouter/free"],
   ]);
 
   const existing = await readOptionalText(envFile);
@@ -388,8 +388,8 @@ Usage:
   metric-atlas scan [--root DIR] [--include GLOB] [--exclude GLOB] [--detectors ga4,gtm,...] [--build-id ID] [--output FILE | --stdout]
   metric-atlas diff --base FILE --head FILE [--format markdown|json] [--output FILE]
   metric-atlas report --base-ref REF --head-ref REF [--root DIR] [--detectors ga4,gtm,...] [--format markdown|json] [--output FILE] [--manifest-dir DIR] [--fail-on-parse-error]
-  metric-atlas init-env [--output FILE] [--force] [--ga4-property-id ID] [--google-application-credentials FILE] [--llm-provider openai|anthropic] [--llm-base-url URL] [--llm-model MODEL] [--llm-api-key-env ENV_VAR]
-  metric-atlas set-llm-key [--env FILE] (--key VALUE | --key-env ENV_VAR | --key-stdin) [--provider openai|anthropic] [--base-url URL] [--model MODEL]
+  metric-atlas init-env [--output FILE] [--force] [--ga4-property-id ID] [--google-application-credentials FILE] [--llm-provider openrouter] [--llm-base-url URL] [--llm-model MODEL] [--llm-api-key-env ENV_VAR]
+  metric-atlas set-llm-key [--env FILE] (--key VALUE | --key-env ENV_VAR | --key-stdin) [--provider openrouter] [--base-url URL] [--model MODEL]
   metric-atlas serve [DIST_DIR] [--host HOST] [--port PORT] [--env FILE] [--dashboard-path PATH]
 
 The scanner reads source files and writes only the requested manifest output. It never modifies source files.

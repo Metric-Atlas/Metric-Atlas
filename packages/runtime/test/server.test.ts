@@ -11,7 +11,6 @@ const originalFetch = globalThis.fetch;
 afterEach(async () => {
   globalThis.fetch = originalFetch;
   delete process.env.METRIC_ATLAS_GA4_PROPERTY_ID;
-  delete process.env.OPENAI_API_KEY;
   delete process.env.METRIC_ATLAS_LLM_API_KEY;
   delete process.env.METRIC_ATLAS_LLM_BASE_URL;
   delete process.env.METRIC_ATLAS_LLM_MODEL;
@@ -28,7 +27,7 @@ describe("Metric Atlas Local Node Runtime", () => {
   it("serves static assets and redacts credential values from health", async () => {
     const root = await temporaryRoot();
     await writeFile(path.join(root, "index.html"), "<h1>Metric Atlas</h1>");
-    process.env.OPENAI_API_KEY = "sk-secret";
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-secret";
 
     const runtime = await serveRuntime({ root, port: 0 });
     try {
@@ -46,12 +45,12 @@ describe("Metric Atlas Local Node Runtime", () => {
   it("loads env files only into the Node Runtime process", async () => {
     const root = await temporaryRoot();
     const envFile = path.join(root, ".env.metric-atlas");
-    await writeFile(envFile, "METRIC_ATLAS_GA4_PROPERTY_ID=123456789\nOPENAI_API_KEY='sk-env'\n");
+    await writeFile(envFile, "METRIC_ATLAS_GA4_PROPERTY_ID=123456789\nMETRIC_ATLAS_LLM_API_KEY='sk-env'\n");
 
     await loadEnvFile(envFile);
 
     expect(process.env.METRIC_ATLAS_GA4_PROPERTY_ID).toBe("123456789");
-    expect(process.env.OPENAI_API_KEY).toBe("sk-env");
+    expect(process.env.METRIC_ATLAS_LLM_API_KEY).toBe("sk-env");
   });
 
   it("fails closed for LLM generation when no runtime API key is configured", async () => {
@@ -70,7 +69,7 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
-  it("uses the runtime API key to call an openai-compatible chat completion endpoint", async () => {
+  it("uses the runtime API key to call an OpenRouter chat completion endpoint", async () => {
     const root = await temporaryRoot();
     process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
     process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
@@ -122,7 +121,7 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
-  it("extracts text from OpenAI-compatible array content responses", async () => {
+  it("extracts text from chat completions array content responses", async () => {
     const root = await temporaryRoot();
     process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
     process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
@@ -152,7 +151,7 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
-  it("scans later OpenAI-compatible choices when the first choice has no text", async () => {
+  it("scans later chat completions choices when the first choice has no text", async () => {
     const root = await temporaryRoot();
     process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
     process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
@@ -187,7 +186,7 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
-  it("falls back to reasoning text for OpenAI-compatible responses with empty content", async () => {
+  it("falls back to reasoning text for chat completions responses with empty content", async () => {
     const root = await temporaryRoot();
     process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
     process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
@@ -248,7 +247,7 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
-  it("includes refusal and tool-call hints when an OpenAI-compatible response has no text", async () => {
+  it("includes refusal and tool-call hints when a chat completions response has no text", async () => {
     const root = await temporaryRoot();
     process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
     process.env.METRIC_ATLAS_LLM_BASE_URL = "https://llm.example.test/v1";
@@ -327,7 +326,7 @@ describe("Metric Atlas Local Node Runtime", () => {
     }
   });
 
-  it("uses the default LLM base URL when env value is blank", async () => {
+  it("uses the default OpenRouter LLM base URL when env value is blank", async () => {
     const root = await temporaryRoot();
     process.env.METRIC_ATLAS_LLM_API_KEY = "sk-runtime";
     process.env.METRIC_ATLAS_LLM_BASE_URL = "";
@@ -353,8 +352,9 @@ describe("Metric Atlas Local Node Runtime", () => {
       const body = await response.json();
 
       expect(response.status).toBe(200);
+      expect(body.provider).toBe("openrouter");
       expect(body.content).toBe("기본 URL 호출 성공");
-      expect(upstreamRequest?.url).toBe("https://api.openai.com/v1/chat/completions");
+      expect(upstreamRequest?.url).toBe("https://openrouter.ai/api/v1/chat/completions");
     } finally {
       await runtime.close();
     }
