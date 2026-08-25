@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ANALYSIS_KO, C, HEALTH_META, VALUE_KO, eventKo, providerColors } from "../labels";
 import { badge, card, fieldLabel, grid, input, mono, sectionTitle, tag } from "../ui";
 import { findCandidates, MAX_CANDIDATES } from "../search";
@@ -132,40 +132,41 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
   }
 
   return (
-    <div style={{ ...grid(360, 16), alignItems: "start" }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "stretch", height: PANE_HEIGHT, minHeight: 480 }}>
+      <div style={{ display: "flex", flexDirection: "column", flex: "1 1 380px", minWidth: 320, height: "100%", minHeight: 0 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10, flex: "none", marginBottom: 10 }}>
           <h2 style={sectionTitle}>대화</h2>
           <ModeToggle mode={mode} onChange={setMode} />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 7, maxHeight: 520, overflowY: "auto", paddingRight: 2 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: "1 1 auto", minHeight: 0, overflowY: "auto", paddingRight: 4 }}>
           {turns.map((t) => (
             <TurnBubble key={t.id} turn={t} active={t.id === activeTurn?.id} onSelect={() => setActiveTurnId(t.id)} />
           ))}
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit(inputValue);
-          }}
-          style={{ display: "flex", gap: 8 }}
-        >
-          <input
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="이어서 질문하기..."
-            style={{ ...input, flex: 1, padding: "11px 13px", fontSize: 13.5, borderRadius: 9 }}
-          />
-          <SendButton disabled={!inputValue.trim()} />
-        </form>
-
-        {llmNotice}
-        {keyPanel}
+        <div style={{ flex: "none", marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+          {llmNotice}
+          {keyPanel}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit(inputValue);
+            }}
+            style={{ display: "flex", gap: 8 }}
+          >
+            <input
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="이어서 질문하기..."
+              style={{ ...input, flex: 1, padding: "11px 13px", fontSize: 13.5, borderRadius: 9 }}
+            />
+            <SendButton disabled={!inputValue.trim()} />
+          </form>
+        </div>
       </div>
 
-      <div style={{ minWidth: 0 }}>
+      <ResultPane>
         {activeTurn && (
           <ResultCanvas
             turn={activeTurn}
@@ -175,10 +176,13 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
             llmAvailable={llmAvailable}
           />
         )}
-      </div>
+      </ResultPane>
     </div>
   );
 }
+
+/** 사이드바 위 header, main padding 등 페이지 chrome을 대략 뺀 값. 화면 전체를 채우되 너무 작아지지 않게 최소값을 둔다. */
+const PANE_HEIGHT = "calc(100vh - 230px)";
 
 function createTurn(question: string, rows: JoinedRow[], mode: QueryMode, presetKey?: string): QueryTurn {
   const candidates = presetKey ? rows.filter((r) => r.eventKey === presetKey) : findCandidates(rows, question);
@@ -319,31 +323,75 @@ function LlmNotice({ onOpenKeyPanel }: { onOpenKeyPanel: () => void }) {
 
 function TurnBubble({ turn, active, onSelect }: { turn: QueryTurn; active: boolean; onSelect: () => void }) {
   const chosen = turn.candidates.find((c) => c.eventKey === turn.chosenKey) ?? null;
-  const statusLine = !chosen
-    ? turn.candidates.length === 0
-      ? "후보 없음"
-      : "후보 선택 필요"
-    : turn.mode === "chat"
-      ? turn.llm.status === "loading"
-        ? "AI 응답 대기 중"
-        : turn.llm.status === "success"
-          ? "AI 응답 완료"
-          : turn.llm.status === "error"
-            ? "AI 응답 오류"
-            : "대화모드"
-      : "분석모드";
+  const reply = turnReplyText(turn, chosen);
   return (
-    <button
+    <div
       onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onSelect();
+      }}
+      style={{ display: "flex", flexDirection: "column", gap: 6, cursor: "pointer", opacity: active ? 1 : 0.85 }}
+    >
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div
+          style={{
+            maxWidth: "88%", border: `1px solid ${active ? C.accentLine : C.lineSoft}`,
+            background: active ? C.accentBg : C.surfaceAlt, borderRadius: "13px 13px 3px 13px",
+            padding: "9px 13px", fontSize: 12.5, fontWeight: 600, lineHeight: 1.5, overflowWrap: "anywhere"
+          }}
+        >
+          {turn.question}
+        </div>
+      </div>
+      <div
+        style={{
+          maxWidth: "92%", fontSize: 12, lineHeight: 1.55, overflowWrap: "anywhere", padding: "0 4px",
+          color: reply.tone === "error" ? C.red : "#4a4c47"
+        }}
+      >
+        {reply.text}
+      </div>
+    </div>
+  );
+}
+
+/** 채팅 목록에 보여줄 짧은 응답 미리보기. 실제 LLM 답변이 있으면 그걸, 없으면 로컬 게이트/후보 상태를 요약한다. */
+function turnReplyText(turn: QueryTurn, chosen: JoinedRow | null): { text: string; tone: "normal" | "error" } {
+  if (turn.llm.status === "success") return { text: turn.llm.message, tone: "normal" };
+  if (turn.llm.status === "error") return { text: `${turn.llm.code}: ${turn.llm.message}`, tone: "error" };
+  if (turn.llm.status === "loading") return { text: "생각하는 중...", tone: "normal" };
+  if (turn.candidates.length === 0) return { text: "일치하는 이벤트가 없습니다.", tone: "error" };
+  if (!chosen) return { text: `후보 ${turn.candidates.length}건 중 하나를 선택해 주세요.`, tone: "normal" };
+  const outcome = evaluateQuery(chosen, turn.analysisType);
+  return {
+    text: `${outcome.statusLabel} · ${eventKo(chosen.eventName)} (${turn.analysisType})`,
+    tone: outcome.blocked ? "error" : "normal"
+  };
+}
+
+/** 오른쪽 "분석 결과"를 새 탭처럼 보이게 감싸는 컨테이너. 내용이 길어져도 이 안에서만 스크롤되고 페이지 전체 높이에는 영향을 주지 않는다. */
+function ResultPane({ children }: { children: ReactNode }) {
+  return (
+    <div
       style={{
-        textAlign: "left", border: `1px solid ${active ? C.accentLine : C.lineSoft}`,
-        background: active ? C.accentBg : C.surfaceAlt, borderRadius: 10, padding: "10px 12px",
-        cursor: "pointer", display: "flex", flexDirection: "column", gap: 4
+        flex: "1 1 420px", minWidth: 320, height: "100%", minHeight: 0, display: "flex", flexDirection: "column",
+        border: `1px solid ${C.line}`, borderRadius: 14, background: C.surface, overflow: "hidden",
+        boxShadow: "0 1px 2px rgba(22,24,29,0.05)"
       }}
     >
-      <span style={{ fontSize: 12.5, fontWeight: 700, lineHeight: 1.4, overflowWrap: "anywhere" }}>{turn.question}</span>
-      <span style={{ fontSize: 10.5, color: C.faint, fontFamily: mono }}>{statusLine}</span>
-    </button>
+      <div
+        style={{
+          flex: "none", display: "flex", alignItems: "center", gap: 8, padding: "11px 15px",
+          borderBottom: `1px solid ${C.lineSoft}`, background: C.surfaceAlt
+        }}
+      >
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.accent, flex: "none" }} />
+        <span style={{ fontSize: 12, fontWeight: 700, color: C.muted }}>분석 결과</span>
+      </div>
+      <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", padding: 16 }}>{children}</div>
+    </div>
   );
 }
 
