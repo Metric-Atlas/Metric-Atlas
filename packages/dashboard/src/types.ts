@@ -78,12 +78,6 @@ export interface QueryOutcome {
   noResultReason: string;
 }
 
-/**
- * "대화모드"는 후보가 확정되는 즉시 LLM 설명을 자동 요청한다.
- * "분석모드"는 QueryPlan/Mock 결과만 계산하고 LLM은 수동 버튼으로만 호출한다.
- */
-export type QueryMode = "chat" | "analysis";
-
 export type QueryScope = "event" | "health_summary";
 
 export type LlmState =
@@ -102,7 +96,6 @@ export interface QuerySeed {
 export interface QueryTurn {
   id: string;
   question: string;
-  mode: QueryMode;
   scope: QueryScope;
   analysisType: AnalysisType;
   candidates: JoinedRow[];

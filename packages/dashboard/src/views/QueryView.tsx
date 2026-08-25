@@ -4,7 +4,7 @@ import { badge, card, fieldLabel, grid, input, mono, sectionTitle, tag } from ".
 import { findCandidates, isBroadAnalysisQuestion, MAX_CANDIDATES } from "../search";
 import { evaluateQuery } from "../queryPlan";
 import { callRuntimeLlm, LlmRequestError, toLlmCandidates } from "../llmClient";
-import type { AnalysisType, HealthBucket, JoinedRow, QueryMode, QueryOutcome, QuerySeed, QueryTurn } from "../types";
+import type { AnalysisType, HealthBucket, JoinedRow, QueryOutcome, QuerySeed, QueryTurn } from "../types";
 
 const EXAMPLES = [
   "구매 클릭이 지난달보다 늘었나요?",
@@ -28,10 +28,8 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
   const { rows } = props;
   const [turns, setTurns] = useState<QueryTurn[]>([]);
   const [activeTurnId, setActiveTurnId] = useState<string | null>(null);
-  const [mode, setMode] = useState<QueryMode>("analysis");
   const [inputValue, setInputValue] = useState("");
   const [serverLlmReady, setServerLlmReady] = useState<boolean | null>(null);
-  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -52,13 +50,11 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
   useEffect(() => {
     if (!props.seed || props.seed === seedRef.current) return;
     seedRef.current = props.seed;
-    const effectiveMode = resolveModeForTurn();
-    const turn = createTurn(props.seed.question, rows, effectiveMode, props.seed.eventKey);
+    const turn = createTurn(props.seed.question, rows, props.seed.eventKey);
     setTurns((prev) => [...prev, turn]);
     setActiveTurnId(turn.id);
     props.onSeedConsumed();
-    if (shouldAutoRunLlm(turn) && llmAvailable) void runLlm(turn.id, turn);
-    // seed 변경(질의로 보내기 클릭)에만 반응한다. rows/mode 변화로 재실행하지 않는다.
+    // seed 변경(질의로 보내기 클릭)에만 반응한다. rows 변화로 재실행하지 않는다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.seed]);
 
@@ -95,27 +91,13 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
     }
   }
 
-  /** 대화모드인데 사용 가능한 LLM 키가 없으면 이 턴은 분석모드로 대체하고, 전역 모드도 분석모드로 되돌린다. */
-  function resolveModeForTurn(): QueryMode {
-    if (mode === "chat" && !llmAvailable) {
-      setFallbackNotice(
-        "Runtime 서버에 LLM 키가 없어 분석 모드로 전환되었습니다. 채팅 모드를 사용하려면 서버 Secret에 METRIC_ATLAS_LLM_API_KEY를 설정해주세요."
-      );
-      setMode("analysis");
-      return "analysis";
-    }
-    return mode;
-  }
-
   function submit(question: string) {
     const q = question.trim();
     if (!q) return;
-    const effectiveMode = resolveModeForTurn();
-    const turn = createTurn(q, rows, effectiveMode);
+    const turn = createTurn(q, rows);
     setTurns((prev) => [...prev, turn]);
     setActiveTurnId(turn.id);
     setInputValue("");
-    if (shouldAutoRunLlm(turn) && llmAvailable) void runLlm(turn.id, turn);
   }
 
   function chooseCandidate(turnId: string, eventKey: string) {
@@ -123,7 +105,6 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
     if (!current) return;
     const updated: QueryTurn = { ...current, chosenKey: eventKey };
     setTurns((prev) => prev.map((t) => (t.id === turnId ? updated : t)));
-    if (updated.mode === "chat" && llmAvailable) void runLlm(turnId, updated);
   }
 
   function setAnalysisType(turnId: string, analysisType: AnalysisType) {
@@ -131,14 +112,12 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
   }
 
   const llmNotice = !llmAvailable && serverLlmReady !== null && <LlmNotice />;
-  const modal = fallbackNotice && <FallbackModal message={fallbackNotice} onClose={() => setFallbackNotice(null)} />;
 
   if (turns.length === 0) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <EmptyHero value={inputValue} onChange={setInputValue} onSubmit={() => submit(inputValue)} mode={mode} setMode={setMode} />
+        <EmptyHero value={inputValue} onChange={setInputValue} onSubmit={() => submit(inputValue)} />
         {llmNotice}
-        {modal}
       </div>
     );
   }
@@ -149,7 +128,6 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
       <div style={{ display: "flex", flexDirection: "column", flex: "1 1 380px", minWidth: 320, height: "100%", minHeight: 0 }}>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10, flex: "none", marginBottom: 10 }}>
           <h2 style={sectionTitle}>대화</h2>
-          <ModeToggle mode={mode} onChange={setMode} />
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: "1 1 auto", minHeight: 0, overflowY: "auto", paddingRight: 4 }}>
@@ -190,7 +168,6 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
         )}
       </ResultPane>
     </div>
-    {modal}
     </>
   );
 }
@@ -198,24 +175,19 @@ export function QueryView(props: { rows: JoinedRow[]; seed: QuerySeed | null; on
 /** 사이드바 위 header, main padding 등 페이지 chrome을 대략 뺀 값. 화면 전체를 채우되 너무 작아지지 않게 최소값을 둔다. */
 const PANE_HEIGHT = "calc(100vh - 175px)";
 
-function createTurn(question: string, rows: JoinedRow[], mode: QueryMode, presetKey?: string): QueryTurn {
+function createTurn(question: string, rows: JoinedRow[], presetKey?: string): QueryTurn {
   const broadSummary = !presetKey && isBroadAnalysisQuestion(question);
   const candidates = broadSummary ? rowsForHealthSummary(rows) : presetKey ? rows.filter((r) => r.eventKey === presetKey) : findCandidates(rows, question);
   const chosenKey = broadSummary ? null : presetKey ?? (candidates.length === 1 ? (candidates[0]?.eventKey ?? null) : null);
   return {
     id: newTurnId(),
     question,
-    mode,
     scope: broadSummary ? "health_summary" : "event",
     analysisType: "event_count",
     candidates,
     chosenKey,
     llm: { status: "idle" }
   };
-}
-
-function shouldAutoRunLlm(turn: QueryTurn): boolean {
-  return turn.mode === "chat" && (turn.scope === "health_summary" || Boolean(turn.chosenKey));
 }
 
 function rowsForHealthSummary(rows: JoinedRow[]): JoinedRow[] {
@@ -229,33 +201,6 @@ function rowsForHealthSummary(rows: JoinedRow[]): JoinedRow[] {
 function newTurnId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `turn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function ModeToggle({ mode, onChange }: { mode: QueryMode; onChange: (m: QueryMode) => void }) {
-  const options: { id: QueryMode; label: string; hint: string }[] = [
-    { id: "chat", label: "대화모드", hint: "후보가 정해지면 AI 설명을 바로 요청합니다" },
-    { id: "analysis", label: "분석모드", hint: "AI를 자동 호출하지 않고 계획/결과만 확인합니다" }
-  ];
-  return (
-    <div style={{ display: "inline-flex", padding: 4, borderRadius: 999, background: "#efefe9", border: `1px solid ${C.line}`, gap: 2 }}>
-      {options.map((o) => {
-        const on = mode === o.id;
-        return (
-          <button
-            key={o.id}
-            onClick={() => onChange(o.id)}
-            title={o.hint}
-            style={{
-              border: "none", borderRadius: 999, padding: "7px 14px", fontSize: 12.5, fontWeight: 700,
-              cursor: "pointer", background: on ? C.ink : "transparent", color: on ? "#fff" : C.muted
-            }}
-          >
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 function SendButton({ disabled }: { disabled: boolean }) {
@@ -277,8 +222,6 @@ function EmptyHero(props: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
-  mode: QueryMode;
-  setMode: (m: QueryMode) => void;
 }) {
   return (
     <div
@@ -288,7 +231,6 @@ function EmptyHero(props: {
       }}
     >
       <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em" }}>무엇을 알고 싶으세요?</h2>
-      <ModeToggle mode={props.mode} onChange={props.setMode} />
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -386,39 +328,10 @@ function turnReplyText(turn: QueryTurn, chosen: JoinedRow | null): { text: strin
   if (turn.candidates.length === 0) return { text: "일치하는 이벤트가 없습니다.", tone: "error" };
   if (!chosen) return { text: `후보 ${turn.candidates.length}건 중 하나를 선택해 주세요.`, tone: "normal" };
   const outcome = evaluateQuery(chosen, turn.analysisType);
-  if (turn.mode === "analysis" && outcome.blocked) {
-    return { text: "AI 챗봇을 사용하려면 채팅모드를 선택해주세요.", tone: "normal" };
-  }
   return {
     text: `${outcome.statusLabel} · ${eventKo(chosen.eventName)} (${turn.analysisType})`,
     tone: outcome.blocked ? "error" : "normal"
   };
-}
-
-function FallbackModal({ message, onClose }: { message: string; onClose: () => void }) {
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, background: "rgba(22,24,29,0.45)", display: "flex",
-        alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16
-      }}
-    >
-      <div onClick={(e) => e.stopPropagation()} style={{ ...card, maxWidth: 420, boxShadow: "0 12px 32px rgba(0,0,0,0.22)" }}>
-        <h3 style={{ ...sectionTitle, marginBottom: 9 }}>채팅 모드를 쓸 수 없어요</h3>
-        <p style={{ fontSize: 12.5, color: "#4a4c47", lineHeight: 1.6, margin: 0 }}>{message}</p>
-        <button
-          onClick={onClose}
-          style={{
-            marginTop: 14, border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 12.5,
-            fontWeight: 700, cursor: "pointer", background: C.ink, color: "#fff"
-          }}
-        >
-          확인
-        </button>
-      </div>
-    </div>
-  );
 }
 
 /** 오른쪽 "분석 결과"를 새 탭처럼 보이게 감싸는 컨테이너. 내용이 길어져도 이 안에서만 스크롤되고 페이지 전체 높이에는 영향을 주지 않는다. */
@@ -707,7 +620,7 @@ function AiExplanationPanel(props: { turn: QueryTurn; onAskLlm: () => void; llmA
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 11 }}>
         <h2 style={sectionTitle}>AI 설명</h2>
         <span style={{ fontFamily: mono, fontSize: 10.5, color: C.faint }}>
-          {turn.mode === "chat" ? "대화모드 · 자동 호출" : "분석모드 · 수동 호출"}
+          Runtime LLM · 수동 요청
         </span>
       </div>
       <button
