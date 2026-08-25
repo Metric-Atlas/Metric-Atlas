@@ -122,6 +122,17 @@ describe("callRuntimeLlm (server relay path)", () => {
       message: expect.stringContaining("Metric Atlas Runtime에 연결할 수 없습니다")
     });
   });
+
+  it("maps a successful but empty runtime response to a user-facing error", async () => {
+    const fetcher = (async () => jsonResponse({ provider: "openai", model: "empty-model", content: "" })) as typeof fetch;
+
+    await expect(
+      callRuntimeLlm({ question: "q", analysisType: "event_count", candidates: [] }, fetcher)
+    ).rejects.toMatchObject({
+      code: "llm_empty_response",
+      message: expect.stringContaining("본문이 비어 있습니다")
+    });
+  });
 });
 
 describe("friendlyLlmError", () => {
@@ -129,5 +140,6 @@ describe("friendlyLlmError", () => {
     expect(friendlyLlmError("llm_timeout")).toContain("제한 시간");
     expect(friendlyLlmError("llm_upstream_error", "invalid api key")).toContain("API 키");
     expect(friendlyLlmError("llm_network_error", "ENOTFOUND")).toContain("연결하지 못했습니다");
+    expect(friendlyLlmError("llm_empty_response")).toContain("본문이 비어 있습니다");
   });
 });

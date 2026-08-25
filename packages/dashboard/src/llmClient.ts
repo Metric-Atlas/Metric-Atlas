@@ -85,10 +85,14 @@ export async function callRuntimeLlm(
     throw new LlmRequestError(code, friendlyLlmError(code, error?.message));
   }
   const parsed = body as { provider?: string; model?: string; content?: string } | null;
+  const content = parsed?.content?.trim() ?? "";
+  if (!content) {
+    throw new LlmRequestError("llm_empty_response", friendlyLlmError("llm_empty_response"));
+  }
   return {
     provider: parsed?.provider ?? "openai-compatible",
     model: parsed?.model ?? "unknown",
-    content: parsed?.content || "LLM이 빈 응답을 반환했습니다."
+    content
   };
 }
 
@@ -159,6 +163,9 @@ export function friendlyLlmError(code: string, detail?: unknown): string {
   }
   if (code === "llm_upstream_error" || code.startsWith("llm_upstream_")) {
     return `LLM 제공자가 요청을 거부했습니다. API 키, 모델명, 결제/쿼터 상태를 확인해주세요.${suffix}`;
+  }
+  if (code === "llm_empty_response") {
+    return "LLM 제공자가 성공 상태를 반환했지만 본문이 비어 있습니다. 다른 모델을 선택하거나 잠시 후 다시 시도해주세요.";
   }
   if (code === "runtime_unavailable") {
     return `Metric Atlas Runtime에 연결할 수 없습니다. Runtime 배포 상태와 /__metric-atlas/api/llm/generate 경로를 확인해주세요.${suffix}`;

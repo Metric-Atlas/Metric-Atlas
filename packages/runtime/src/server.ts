@@ -313,10 +313,21 @@ async function generateLlmResponse(
     return;
   }
 
+  const content = provider === "anthropic" ? extractAnthropicContent(upstreamBody) : extractChatContent(upstreamBody);
+  if (!content.trim()) {
+    sendJson(response, 502, {
+      error: {
+        code: "llm_empty_response",
+        message: "LLM provider returned a successful response without text content.",
+      },
+    });
+    return;
+  }
+
   sendJson(response, 200, {
     provider,
     model,
-    content: provider === "anthropic" ? extractAnthropicContent(upstreamBody) : extractChatContent(upstreamBody),
+    content,
   });
 }
 
@@ -395,20 +406,31 @@ function extractChatContent(value: unknown): string {
   const first = choices[0];
   if (!first || typeof first !== "object") return "";
   const message = (first as { message?: unknown }).message;
-  if (!message || typeof message !== "object") return "";
-  const content = (message as { content?: unknown }).content;
-  return typeof content === "string" ? content : "";
+  const messageContent = message && typeof message === "object" ? textFromContent((message as { content?: unknown }).content) : "";
+  if (messageContent) return messageContent;
+  const reasoning = message && typeof message === "object" ? (message as { reasoning?: unknown }).reasoning : "";
+  if (typeof reasoning === "string" && reasoning.trim()) return reasoning.trim();
+  const text = (first as { text?: unknown }).text;
+  return typeof text === "string" ? text.trim() : "";
 }
 
 function extractAnthropicContent(value: unknown): string {
   if (!value || typeof value !== "object") return "";
   const content = (value as { content?: unknown }).content;
+  return textFromContent(content);
+}
+
+function textFromContent(content: unknown): string {
+  if (typeof content === "string") return content.trim();
   if (!Array.isArray(content)) return "";
-  const textBlock = content.find(
-    (block): block is { type: "text"; text: string } =>
-      Boolean(block) && typeof block === "object" && (block as { type?: unknown }).type === "text",
-  );
-  return textBlock ? textBlock.text : "";
+  return content
+    .map((block) => {
+      if (!block || typeof block !== "object") return "";
+      const text = (block as { text?: unknown }).text;
+      return typeof text === "string" ? text.trim() : "";
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 function extractUpstreamError(value: unknown): string | null {
