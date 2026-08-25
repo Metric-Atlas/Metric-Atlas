@@ -328,6 +328,7 @@ const LLM_SYSTEM_PROMPT =
     "Never claim that an event is collected, healthy, or needs no setup unless ga4ObservationState is observed and latestResultStatus is ok.",
     "If Health fields are missing, unknown, no_rows, unauthorized, unsupported, or error, say the result is not proven and explain the next check.",
     "If missingCustomDimensions is not empty, state that GA4 Custom Dimension registration is still needed for reporting.",
+    "If missingCustomDimensions is empty, say only that no missing custom dimensions were reported in the supplied data; do not claim that no registration or setup is needed.",
     "Reply in Korean.",
   ].join(" ");
 

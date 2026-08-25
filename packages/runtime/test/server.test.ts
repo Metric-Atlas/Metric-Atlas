@@ -110,6 +110,7 @@ describe("Metric Atlas Local Node Runtime", () => {
       expect(sent.model).toBe("demo-model");
       expect(sent.messages[0].content).toContain("Never claim that an event is collected");
       expect(sent.messages[0].content).toContain("latestResultStatus is ok");
+      expect(sent.messages[0].content).toContain("do not claim that no registration or setup is needed");
       expect(prompt.candidates).toHaveLength(1);
       expect(prompt.candidates[0]).toMatchObject({
         eventKey: "ga4:purchase_click",
