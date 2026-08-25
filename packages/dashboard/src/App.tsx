@@ -5,8 +5,8 @@ import { EventsView } from "./views/EventsView";
 import { QueryView } from "./views/QueryView";
 import { fixtureDashboardData, joinRows, loadDashboardData, type DashboardData } from "./data";
 import { C } from "./labels";
-import { EMPTY_FILTERS, filterRows, findCandidates, type FilterState } from "./search";
-import type { AnalysisType, HealthBucket } from "./types";
+import { EMPTY_FILTERS, filterRows, type FilterState } from "./search";
+import type { HealthBucket, QuerySeed } from "./types";
 
 export type ViewId = "overview" | "events" | "query";
 
@@ -21,7 +21,7 @@ const VIEW_META: Record<ViewId, { title: string; sub: string }> = {
   },
   query: {
     title: "질의",
-    sub: "질문에서 이벤트 후보를 좁히고 QueryPlan을 만든 뒤 Mock 결과를 확인합니다. 실제 GA4/LLM 호출은 없습니다."
+    sub: "질문에서 이벤트 후보를 좁히고 QueryPlan과 Mock 결과를 확인합니다. GA4 조회는 Mock이며, AI 설명만 실제 LLM을 호출합니다."
   }
 };
 
@@ -51,19 +51,17 @@ export function App({ beforeContent }: AppProps = {}) {
     [dashboardData]
   );
   const { manifest, health } = dashboardData;
+  /** 이 모노레포의 로컬 데모(apps/demo-react-vite)처럼 manifest/health 둘 다 fixture로 떨어진 경우에만
+   *  "Fixture 모드"다. 실제 설치에서는 manifest는 항상 빌드에서 나온 실 데이터이므로 이 배지가 뜨지 않는다. */
+  const isFixtureMode = dashboardData.manifestSource === "fixture" && dashboardData.healthSource === "fixture";
   const scanStats = manifest.scanStats;
   const [view, setView] = useState<ViewId>("overview");
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [selectedKey, setSelectedKey] = useState<string | null>("ga4:purchase_click");
-  const [question, setQuestion] = useState("구매 클릭이 지난달보다 늘었나요?");
-  const [chosenKey, setChosenKey] = useState<string | null>(null);
-  const [analysisType, setAnalysisType] = useState<AnalysisType>("comparison");
+  const [querySeed, setQuerySeed] = useState<QuerySeed | null>(null);
 
   const visibleRows = useMemo(() => filterRows(rows, filters), [rows, filters]);
   const selected = rows.find((r) => r.eventKey === selectedKey) ?? null;
-
-  const candidates = useMemo(() => findCandidates(rows, question), [rows, question]);
-  const chosen = candidates.find((c) => c.eventKey === chosenKey) ?? (candidates.length === 1 ? (candidates[0] ?? null) : null);
 
   const openBucket = (bucket: HealthBucket) => {
     setFilters({ ...EMPTY_FILTERS, health: bucket });
@@ -75,6 +73,7 @@ export function App({ beforeContent }: AppProps = {}) {
       <Sidebar
         view={view}
         onNavigate={setView}
+        isFixtureMode={isFixtureMode}
         context={[
           { label: "MANIFEST", value: `v${manifest.version}` },
           { label: "BUILD ID", value: manifest.buildId },
@@ -86,8 +85,8 @@ export function App({ beforeContent }: AppProps = {}) {
 
       <main
         style={{
-          flex: "9999 1 620px", padding: "22px 24px 56px", display: "flex", flexDirection: "column",
-          gap: 16, minWidth: 0
+          flex: "9999 1 620px", padding: view === "query" ? "22px 24px 16px" : "22px 24px 56px",
+          display: "flex", flexDirection: "column", gap: 16, minWidth: 0
         }}
       >
         <header>
@@ -137,8 +136,7 @@ export function App({ beforeContent }: AppProps = {}) {
             onSelect={setSelectedKey}
             onMakeQuery={() => {
               if (selected) {
-                setQuestion(selected.eventName);
-                setChosenKey(selected.eventKey);
+                setQuerySeed({ question: selected.eventName, eventKey: selected.eventKey });
               }
               setView("query");
             }}
@@ -146,26 +144,17 @@ export function App({ beforeContent }: AppProps = {}) {
         )}
 
         {view === "query" && (
-          <QueryView
-            question={question}
-            setQuestion={(q) => {
-              setQuestion(q);
-              setChosenKey(null);
-            }}
-            candidates={candidates}
-            chosen={chosen}
-            onChoose={setChosenKey}
-            analysisType={analysisType}
-            setAnalysisType={setAnalysisType}
-          />
+          <QueryView rows={rows} seed={querySeed} onSeedConsumed={() => setQuerySeed(null)} />
         )}
 
-        <footer style={{ fontSize: 11.5, color: C.faint, lineHeight: 1.6, overflowWrap: "anywhere" }}>
-          fixtures/mock-manifest.json · mock-ga4-health.json · mock-query-result.json (읽기 전용) · scan{" "}
-          {scanStats
-            ? `scan ${scanStats.filesScanned} files · ${scanStats.durationMs}ms · ${scanStats.eventsDetected} events`
-            : "scan stats unavailable"}
-        </footer>
+        {view !== "query" && (
+          <footer style={{ fontSize: 11.5, color: C.faint, lineHeight: 1.6, overflowWrap: "anywhere" }}>
+            {isFixtureMode && "fixtures/mock-manifest.json · mock-ga4-health.json · mock-query-result.json (읽기 전용) · "}
+            {scanStats
+              ? `scan ${scanStats.filesScanned} files · ${scanStats.durationMs}ms · ${scanStats.eventsDetected} events`
+              : "scan stats unavailable"}
+          </footer>
+        )}
       </main>
     </div>
   );

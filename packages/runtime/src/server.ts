@@ -243,36 +243,38 @@ async function generateLlmResponse(
     return;
   }
 
-  const baseUrl = trimTrailingSlash(envValue("METRIC_ATLAS_LLM_BASE_URL") ?? "https://api.openai.com/v1");
-  const model = envValue("METRIC_ATLAS_LLM_MODEL") ?? "gpt-4o-mini";
+  const provider = envValue("METRIC_ATLAS_LLM_PROVIDER") === "anthropic" ? "anthropic" : "openai";
+  const defaults = LLM_PROVIDER_DEFAULTS[provider];
+  const baseUrl = trimTrailingSlash(envValue("METRIC_ATLAS_LLM_BASE_URL") ?? defaults.baseUrl);
+  const model = envValue("METRIC_ATLAS_LLM_MODEL") ?? defaults.model;
   const timeoutMs = parsePositiveInteger(process.env.METRIC_ATLAS_LLM_TIMEOUT_MS, 10_000);
-  const upstream = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${apiKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You help marketers understand analytics events. Use only the supplied event metadata. Do not ask for credentials or source code. Reply in Korean.",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            question: body.question,
-            analysisType: body.analysisType ?? "unknown",
-            candidates,
-          }),
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(timeoutMs),
-  });
+  const question = {
+    question: body.question,
+    analysisType: body.analysisType ?? "unknown",
+    candidates,
+  };
+
+  const upstream =
+    provider === "anthropic"
+      ? await fetch(`${baseUrl}/messages`, {
+          method: "POST",
+          headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": ANTHROPIC_API_VERSION,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(buildAnthropicMessageBody(question, model)),
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+      : await fetch(`${baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${apiKey}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(buildOpenAiChatBody(question, model)),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
 
   const upstreamBody: unknown = await upstream.json().catch(() => null);
   if (!upstream.ok) {
@@ -286,10 +288,40 @@ async function generateLlmResponse(
   }
 
   sendJson(response, 200, {
-    provider: envValue("METRIC_ATLAS_LLM_PROVIDER") ?? "openai-compatible",
+    provider,
     model,
-    content: extractChatContent(upstreamBody),
+    content: provider === "anthropic" ? extractAnthropicContent(upstreamBody) : extractChatContent(upstreamBody),
   });
+}
+
+const LLM_SYSTEM_PROMPT =
+  "You help marketers understand analytics events. Use only the supplied event metadata. Do not ask for credentials or source code. Reply in Korean.";
+
+const ANTHROPIC_API_VERSION = "2023-06-01";
+
+const LLM_PROVIDER_DEFAULTS = {
+  openai: { baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
+  anthropic: { baseUrl: "https://api.anthropic.com/v1", model: "claude-haiku-4-5-20251001" },
+} as const;
+
+function buildOpenAiChatBody(question: unknown, model: string) {
+  return {
+    model,
+    temperature: 0.2,
+    messages: [
+      { role: "system", content: LLM_SYSTEM_PROMPT },
+      { role: "user", content: JSON.stringify(question) },
+    ],
+  };
+}
+
+function buildAnthropicMessageBody(question: unknown, model: string) {
+  return {
+    model,
+    max_tokens: 1024,
+    system: LLM_SYSTEM_PROMPT,
+    messages: [{ role: "user", content: JSON.stringify(question) }],
+  };
 }
 
 async function readJsonBody<T>(request: IncomingMessage): Promise<T> {
@@ -331,6 +363,17 @@ function extractChatContent(value: unknown): string {
   if (!message || typeof message !== "object") return "";
   const content = (message as { content?: unknown }).content;
   return typeof content === "string" ? content : "";
+}
+
+function extractAnthropicContent(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+  const content = (value as { content?: unknown }).content;
+  if (!Array.isArray(content)) return "";
+  const textBlock = content.find(
+    (block): block is { type: "text"; text: string } =>
+      Boolean(block) && typeof block === "object" && (block as { type?: unknown }).type === "text",
+  );
+  return textBlock ? textBlock.text : "";
 }
 
 function extractUpstreamError(value: unknown): string | null {

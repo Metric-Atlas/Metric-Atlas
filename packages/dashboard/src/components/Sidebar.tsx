@@ -17,6 +17,7 @@ const navButton = (active: boolean): CSSProperties => ({
 export function Sidebar(props: {
   view: ViewId;
   onNavigate: (v: ViewId) => void;
+  isFixtureMode: boolean;
   context: { label: string; value: string }[];
 }) {
   return (
@@ -28,20 +29,24 @@ export function Sidebar(props: {
     >
       <div>
         <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.01em" }}>Metric Atlas</div>
-        <div style={{ fontSize: 11.5, color: "#9b9d9a", marginTop: 2 }}>Local Demo Dashboard</div>
+        <div style={{ fontSize: 11.5, color: "#9b9d9a", marginTop: 2 }}>
+          {props.isFixtureMode ? "Local Demo Dashboard" : "Analytics Health Dashboard"}
+        </div>
       </div>
 
-      <div
-        style={{
-          display: "flex", alignItems: "center", gap: 8, padding: "7px 11px",
-          border: "1px solid #b45309", borderRadius: 9, background: "#3a2a11"
-        }}
-      >
-        <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#f0a13a", flex: "none" }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: "#f0c48a", overflowWrap: "anywhere" }}>
-          Fixture 모드 · Mock 데이터
-        </span>
-      </div>
+      {props.isFixtureMode && (
+        <div
+          style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "7px 11px",
+            border: "1px solid #b45309", borderRadius: 9, background: "#3a2a11"
+          }}
+        >
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#f0a13a", flex: "none" }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#f0c48a", overflowWrap: "anywhere" }}>
+            Fixture 모드 · Mock 데이터
+          </span>
+        </div>
+      )}
 
       <nav style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {NAV.map((n) => {
@@ -74,7 +79,9 @@ export function Sidebar(props: {
       </div>
 
       <div style={{ marginTop: "auto", fontSize: 10.5, color: "#7d7f7a", lineHeight: 1.55, overflowWrap: "anywhere" }}>
-        실제 GA4/LLM 호출 없음 · Secret 입력 없음 · credential 저장 없음
+        {props.isFixtureMode
+          ? "실제 GA4/LLM 호출 없음 · Secret 입력 없음 · credential 저장 없음"
+          : "GA4/LLM 호출은 Runtime 서버에서 처리 · credential은 브라우저에 저장되지 않음"}
       </div>
     </aside>
   );

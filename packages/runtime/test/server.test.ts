@@ -16,6 +16,7 @@ afterEach(async () => {
   delete process.env.METRIC_ATLAS_LLM_BASE_URL;
   delete process.env.METRIC_ATLAS_LLM_MODEL;
   delete process.env.METRIC_ATLAS_LLM_MAX_CANDIDATES;
+  delete process.env.METRIC_ATLAS_LLM_PROVIDER;
   await Promise.all(
     temporaryDirectories.splice(0).map((directory) =>
       rm(directory, { recursive: true, force: true }),
@@ -109,6 +110,50 @@ describe("Metric Atlas Local Node Runtime", () => {
       expect(sent.model).toBe("demo-model");
       expect(prompt.candidates).toHaveLength(1);
       expect(JSON.stringify(prompt)).not.toContain("sk-runtime");
+    } finally {
+      await runtime.close();
+    }
+  });
+
+  it("calls Anthropic's Messages API when METRIC_ATLAS_LLM_PROVIDER=anthropic", async () => {
+    const root = await temporaryRoot();
+    process.env.METRIC_ATLAS_LLM_PROVIDER = "anthropic";
+    process.env.METRIC_ATLAS_LLM_API_KEY = "sk-ant-runtime";
+    process.env.METRIC_ATLAS_LLM_MAX_CANDIDATES = "1";
+    let upstreamRequest: { url: string; init?: RequestInit } | null = null;
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+      if (requestUrl.startsWith("http://")) {
+        return originalFetch(url, init);
+      }
+      upstreamRequest = { url: requestUrl, init };
+      return jsonResponse({ content: [{ type: "text", text: "Claude가 답한 설명입니다." }] });
+    }) as typeof fetch;
+
+    const runtime = await serveRuntime({ root, port: 0 });
+    try {
+      const response = await fetch(`http://${runtime.host}:${runtime.port}/__metric-atlas/api/llm/generate`, {
+        method: "POST",
+        body: JSON.stringify({
+          question: "구매 클릭이 늘었나요?",
+          analysisType: "comparison",
+          candidates: [{ eventKey: "ga4:purchase_click", eventName: "purchase_click", provider: "ga4" }],
+        }),
+      });
+      const body = await response.json();
+      const sent = JSON.parse(String(upstreamRequest?.init?.body));
+
+      expect(response.status).toBe(200);
+      expect(body.provider).toBe("anthropic");
+      expect(body.content).toBe("Claude가 답한 설명입니다.");
+      expect(upstreamRequest?.url).toBe("https://api.anthropic.com/v1/messages");
+      expect(upstreamRequest?.init?.headers).toMatchObject({
+        "x-api-key": "sk-ant-runtime",
+        "anthropic-version": "2023-06-01",
+      });
+      expect(sent.model).toBe("claude-haiku-4-5-20251001");
+      expect(sent.system).toBeTypeOf("string");
+      expect(JSON.stringify(sent)).not.toContain("sk-ant-runtime");
     } finally {
       await runtime.close();
     }

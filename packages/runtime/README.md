@@ -86,4 +86,15 @@ POST /__metric-atlas/api/llm/generate
 GET  /__metric-atlas/dashboard/*   (default path, see --dashboard-path)
 ```
 
-`/llm/generate` calls an openai-compatible `/chat/completions` endpoint when `METRIC_ATLAS_LLM_API_KEY` or `OPENAI_API_KEY` is configured in the Node Runtime environment. It fails closed with `missing_llm_api_key` when no runtime key is present.
+`/llm/generate` calls an LLM provider when `METRIC_ATLAS_LLM_API_KEY` or `OPENAI_API_KEY` is configured in the Node Runtime environment. It fails closed with `missing_llm_api_key` when no runtime key is present.
+
+Provider env vars:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `METRIC_ATLAS_LLM_API_KEY` / `OPENAI_API_KEY` | (required) | API key for the configured provider |
+| `METRIC_ATLAS_LLM_PROVIDER` | `openai` | `openai` or `anthropic`; anything else falls back to `openai` |
+| `METRIC_ATLAS_LLM_BASE_URL` | `https://api.openai.com/v1` (openai) / `https://api.anthropic.com/v1` (anthropic) | any endpoint that speaks the same request/response shape as the selected provider works, e.g. an OpenAI-compatible gateway |
+| `METRIC_ATLAS_LLM_MODEL` | `gpt-4o-mini` (openai) / `claude-haiku-4-5-20251001` (anthropic) | |
+
+`openai` calls `{baseUrl}/chat/completions` (Chat Completions shape); `anthropic` calls `{baseUrl}/messages` (Messages API shape, `x-api-key` auth). The dashboard's own BYOK panel (when no runtime key is configured) mirrors this same provider split and calls the provider directly from the browser instead of relaying through this route.
