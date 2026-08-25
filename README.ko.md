@@ -47,6 +47,20 @@ Node Runtime이 `/__metric-atlas/dashboard`에서 서빙합니다. 첫 화면은
 
 이벤트에 대해 자연어로 질문할 수 있습니다. 답변은 대시보드가 보여주는 것과 같은 Health 근거(코드 상태, GA4 관측 여부, 최근 발생 수)에 기반하므로, 근거 없이 "정상 수집 중"이라고 단정하지 않습니다. Runtime 환경에 키를 설정하면 됩니다 — OpenAI 또는 Anthropic, `metric-atlas init-env`나 `metric-atlas set-llm-key`로 설정 (아래 [LLM 설정](#자연어-질의-설정-llm-선택) 참고). 검색·필터·Health는 LLM 없이도 전부 동작합니다.
 
+### ✅ PR Analytics Change Report — 서버 불필요
+
+GitHub Actions가 base/head 커밋을 재스캔해 PR마다 이벤트 변경을 코멘트합니다. Git이 기준선이라 DB가 필요 없습니다.
+
+```text
+Metric Atlas Analytics Change
+
++ Added events: 3
+- Removed events: 1
+~ Changed emitter/provider: 0
+! Dynamic/unresolved: 2
+! Possible wrapper usage: 1
+```
+
 ## 퀵스타트
 
 ```bash
@@ -93,20 +107,21 @@ npm install "github:Metric-Atlas/Metric-Atlas#dist/vite-plugin"
 
 ## 서버가 필요한가요?
 
-**핵심 기능에는 필요 없습니다.** Overlay는 서버 0대로 동작합니다. 서버가 필요한 건 **Analytics Health Dashboard**뿐입니다 — GA4 조회에는 credential이 필요하고, 그 credential은 절대 브라우저에 내려가면 안 되므로, 조회는 여러분이 통제하는 Node 프로세스에서 실행되어야 합니다.
+**핵심 기능에는 필요 없습니다.** Overlay와 PR Report는 서버 0대로 동작합니다. 서버가 필요한 건 **Analytics Health Dashboard**뿐입니다 — GA4 조회에는 credential이 필요하고, 그 credential은 절대 브라우저에 내려가면 안 되므로, 조회는 여러분이 통제하는 Node 프로세스에서 실행되어야 합니다.
 
-| 현재 상황 | Overlay | Health Dashboard |
-|---|---|---|
-| 정적 호스팅만 사용 (S3/Vercel/Pages) | ✅ 그대로 동작 | 필요할 때 로컬에서 `metric-atlas serve` 실행, 또는 Runtime을 따로 호스팅하고 `/__metric-atlas/*`를 프록시 |
-| 자체 서버/리버스 프록시 보유 (nginx, ALB, k8s) | ✅ 그대로 동작 | Runtime을 내부 서비스 하나로 추가하고 `/__metric-atlas/*` 경로만 라우팅 — 프록시 규칙 한 줄, 기존 배포는 그대로 |
-| 아직 서버 없음 | ✅ | `npx metric-atlas serve ./dist` 하나가 유일한 서버 — 사이트 + 대시보드 + GA4 proxy를 Node 프로세스 하나로 서빙 (DB 없음) |
+| 현재 상황 | Overlay | PR Report | Health Dashboard |
+|---|---|---|---|
+| 정적 호스팅만 사용 (S3/Vercel/Pages) | ✅ 그대로 동작 | ✅ 동작 (CI에서 실행) | 필요할 때 로컬에서 `metric-atlas serve` 실행, 또는 Runtime을 따로 호스팅하고 `/__metric-atlas/*`를 프록시 |
+| 자체 서버/리버스 프록시 보유 (nginx, ALB, k8s) | ✅ 그대로 동작 | ✅ 동작 | Runtime을 내부 서비스 하나로 추가하고 `/__metric-atlas/*` 경로만 라우팅 — 프록시 규칙 한 줄, 기존 배포는 그대로 |
+| 아직 서버 없음 | ✅ | ✅ | `npx metric-atlas serve ./dist` 하나가 유일한 서버 — 사이트 + 대시보드 + GA4 proxy를 Node 프로세스 하나로 서빙 (DB 없음) |
 
 대부분의 팀이 따르는 도입 사다리:
 
 ```text
-1. 플러그인만                 → Overlay                   (서버 없음)
-2. + 필요할 때 로컬 serve     → 그때그때 Health 확인       (호스팅 없음)
-3. + Runtime 호스팅           → 팀 상시 대시보드           (작은 Node 프로세스 1개)
+1. 플러그인만                → Overlay                  (서버 없음)
+2. + CI에 CLI               → PR Analytics Report      (서버 없음)
+3. + 필요할 때 로컬 serve    → 그때그때 Health 확인      (호스팅 없음)
+4. + Runtime 호스팅          → 팀 상시 대시보드          (작은 Node 프로세스 1개)
 ```
 
 ## Analytics Health 설정 (GA4)

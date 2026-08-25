@@ -47,6 +47,20 @@ Served by the Node Runtime at `/__metric-atlas/dashboard`. The first view is **C
 
 Ask questions about your events in plain language. Answers are grounded in the same Health evidence the dashboard shows (code state, GA4 observation, latest counts) so the LLM never claims an event is "collecting fine" without data to back it up. Set a key in the Runtime environment — OpenAI or Anthropic — with `metric-atlas init-env` or `metric-atlas set-llm-key` (see [LLM setup](#natural-language-query-setup-llm-optional) below). Everything else — search, filters, Health — works without an LLM.
 
+### ✅ PR Analytics Change Report — zero-server
+
+GitHub Actions rescans base and head commits and comments the diff on every pull request. Git is the baseline; no database required.
+
+```text
+Metric Atlas Analytics Change
+
++ Added events: 3
+- Removed events: 1
+~ Changed emitter/provider: 0
+! Dynamic/unresolved: 2
+! Possible wrapper usage: 1
+```
+
 ## Quickstart
 
 ```bash
@@ -93,20 +107,21 @@ For normal use, prefer the npm release above.
 
 ## Do I need a server?
 
-**Not for the core.** The Overlay runs with zero servers. A server enters the picture only for the **Analytics Health Dashboard** — GA4 must be queried with a credential, and that credential must never reach the browser, so the query has to run in a Node process you control.
+**Not for the core.** The Overlay and the PR Report run with zero servers. A server enters the picture only for the **Analytics Health Dashboard** — GA4 must be queried with a credential, and that credential must never reach the browser, so the query has to run in a Node process you control.
 
-| You have… | Overlay | Health Dashboard |
-|---|---|---|
-| Static hosting only (S3/Vercel/Pages) | ✅ works as-is | Run `metric-atlas serve` locally when you want to check, or host the Runtime separately and proxy `/__metric-atlas/*` to it |
-| Your own server / reverse proxy (nginx, ALB, k8s) | ✅ works as-is | Add the Runtime as one internal service and route `/__metric-atlas/*` to it — one proxy rule, existing deployment untouched |
-| No server yet | ✅ | `npx metric-atlas serve ./dist` is the only server you need — it serves your site, the dashboard, and the GA4 proxy in a single Node process (no database) |
+| You have… | Overlay | PR Report | Health Dashboard |
+|---|---|---|---|
+| Static hosting only (S3/Vercel/Pages) | ✅ works as-is | ✅ works (runs in CI) | Run `metric-atlas serve` locally when you want to check, or host the Runtime separately and proxy `/__metric-atlas/*` to it |
+| Your own server / reverse proxy (nginx, ALB, k8s) | ✅ works as-is | ✅ works | Add the Runtime as one internal service and route `/__metric-atlas/*` to it — one proxy rule, existing deployment untouched |
+| No server yet | ✅ | ✅ | `npx metric-atlas serve ./dist` is the only server you need — it serves your site, the dashboard, and the GA4 proxy in a single Node process (no database) |
 
 The adoption ladder most teams follow:
 
 ```text
-1. Plugin only              → Overlay                   (no server)
-2. + occasional local serve → Health when you need it    (no server hosted)
-3. + hosted Runtime         → always-on team dashboard   (one small Node process)
+1. Plugin only            → Overlay                    (no server)
+2. + CLI in CI            → PR Analytics Report        (no server)
+3. + occasional local serve → Health when you need it  (no server hosted)
+4. + hosted Runtime       → always-on team dashboard   (one small Node process)
 ```
 
 ## Analytics Health setup (GA4)
