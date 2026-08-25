@@ -10,6 +10,20 @@ const execute = promisify(execFile);
 const cli = fileURLToPath(new URL("../dist/bin.js", import.meta.url));
 const temporaryDirectories: string[] = [];
 
+function executeWithInput(file: string, args: string[], input: string): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(file, args, (error, stdout, stderr) => {
+      if (error) {
+        Object.assign(error, { stdout, stderr });
+        reject(error);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
+    child.stdin?.end(input);
+  });
+}
+
 afterEach(async () => {
   await Promise.all(
     temporaryDirectories.splice(0).map((directory) =>
@@ -207,5 +221,59 @@ describe("metric-atlas CLI", () => {
 
     await execute(process.execPath, [cli, "init-env", "--output", outputFile, "--force"]);
     expect(await readFile(outputFile, "utf8")).toContain("METRIC_ATLAS_LLM_PROVIDER=openai");
+  });
+
+  it("registers or rotates the LLM key in an existing Runtime env file without printing the key", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "metric-atlas-cli-key-"));
+    temporaryDirectories.push(root);
+    const envFile = path.join(root, ".env.metric-atlas");
+    const secret = "sk-registered-secret";
+    await writeFile(
+      envFile,
+      [
+        "METRIC_ATLAS_GA4_PROPERTY_ID=123456789",
+        "GOOGLE_APPLICATION_CREDENTIALS=/secure/reader.json",
+        "METRIC_ATLAS_LLM_API_KEY=old-key",
+        "METRIC_ATLAS_LLM_MODEL=old-model",
+        "",
+      ].join("\n"),
+    );
+
+    const { stderr, stdout } = await execute(process.execPath, [
+      cli,
+      "set-llm-key",
+      "--env",
+      envFile,
+      "--key",
+      secret,
+      "--provider",
+      "openai",
+      "--base-url",
+      "https://openrouter.ai/api/v1",
+      "--model",
+      "openrouter/free",
+    ]);
+
+    const contents = await readFile(envFile, "utf8");
+    expect(contents).toContain("METRIC_ATLAS_GA4_PROPERTY_ID=123456789");
+    expect(contents).toContain("GOOGLE_APPLICATION_CREDENTIALS=/secure/reader.json");
+    expect(contents).toContain("METRIC_ATLAS_LLM_API_KEY=sk-registered-secret");
+    expect(contents).toContain("METRIC_ATLAS_LLM_PROVIDER=openai");
+    expect(contents).toContain("METRIC_ATLAS_LLM_BASE_URL=https://openrouter.ai/api/v1");
+    expect(contents).toContain("METRIC_ATLAS_LLM_MODEL=openrouter/free");
+    expect(contents).not.toContain("old-key");
+    expect(stdout).not.toContain(secret);
+    expect(stderr).not.toContain(secret);
+    expect(stderr).toContain("registered LLM key");
+  });
+
+  it("registers the LLM key from stdin", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "metric-atlas-cli-key-"));
+    temporaryDirectories.push(root);
+    const envFile = path.join(root, ".env.metric-atlas");
+
+    await executeWithInput(process.execPath, [cli, "set-llm-key", "--env", envFile, "--key-stdin"], "sk-from-stdin\n");
+
+    expect(await readFile(envFile, "utf8")).toContain("METRIC_ATLAS_LLM_API_KEY=sk-from-stdin");
   });
 });

@@ -198,6 +198,28 @@ npx metric-atlas init-env \
   --llm-api-key-env OPENROUTER_API_KEY
 ```
 
+이미 만든 Runtime env 파일에 LLM key만 등록하거나 교체할 수도 있습니다.
+
+```bash
+npx metric-atlas set-llm-key \
+  --env ./.env.metric-atlas \
+  --key <YOUR_LLM_KEY> \
+  --provider openai \
+  --base-url https://openrouter.ai/api/v1 \
+  --model openrouter/free
+```
+
+셸 히스토리에 key를 남기고 싶지 않으면 stdin 또는 환경변수 방식을 씁니다.
+
+```bash
+printf '%s' "$OPENROUTER_API_KEY" | npx metric-atlas set-llm-key \
+  --env ./.env.metric-atlas \
+  --key-stdin \
+  --provider openai \
+  --base-url https://openrouter.ai/api/v1 \
+  --model openrouter/free
+```
+
 Runtime CLI를 설치하고, Metric Atlas가 적용된 앱을 빌드한 뒤 Runtime을 실행합니다.
 
 ```bash

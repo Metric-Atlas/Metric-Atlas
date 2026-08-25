@@ -197,6 +197,28 @@ npx metric-atlas init-env \
   --llm-api-key-env OPENROUTER_API_KEY
 ```
 
+You can also register or rotate only the LLM key in an existing Runtime env file:
+
+```bash
+npx metric-atlas set-llm-key \
+  --env ./.env.metric-atlas \
+  --key <YOUR_LLM_KEY> \
+  --provider openai \
+  --base-url https://openrouter.ai/api/v1 \
+  --model openrouter/free
+```
+
+To avoid leaving the key in shell history, use stdin or an environment variable instead:
+
+```bash
+printf '%s' "$OPENROUTER_API_KEY" | npx metric-atlas set-llm-key \
+  --env ./.env.metric-atlas \
+  --key-stdin \
+  --provider openai \
+  --base-url https://openrouter.ai/api/v1 \
+  --model openrouter/free
+```
+
 Install the Runtime CLI, then build and serve the instrumented app:
 
 ```bash
