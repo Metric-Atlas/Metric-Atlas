@@ -52,9 +52,7 @@ describe("toLlmCandidates", () => {
         providerDetectionConfidence: "provider_exact",
         parameters: ["location"],
         source: { file: "src/Button.tsx", line: 10, column: 5 },
-        bindings: [],
-        overlaySupported: true,
-        warnings: []
+        overlaySupported: true
       },
       health: null,
       bindings: [],

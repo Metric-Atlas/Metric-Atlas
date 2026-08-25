@@ -70,6 +70,31 @@ export const KO_HINTS: { words: string[]; eventName: string }[] = [
 
 export const MAX_CANDIDATES = 20;
 
+const BROAD_ANALYSIS_PATTERNS = [
+  "분석",
+  "요약",
+  "진단",
+  "전체",
+  "문제",
+  "이슈",
+  "상태",
+  "health",
+  "헬스"
+];
+
+/**
+ * 질문이 특정 이벤트가 아니라 전체 Analytics Health를 묻는지 가른다.
+ * 이벤트 힌트가 있으면 "구매 분석해줘"처럼 특정 이벤트 질문으로 유지한다.
+ */
+export function isBroadAnalysisQuestion(question: string): boolean {
+  const lower = question.trim().toLowerCase();
+  if (!lower) return false;
+  const hasEventHint = KO_HINTS.some((hint) => hint.words.some((word) => lower.includes(word)));
+  if (hasEventHint) return false;
+  const compact = lower.replace(/\s+/g, "");
+  return BROAD_ANALYSIS_PATTERNS.some((pattern) => compact.includes(pattern));
+}
+
 /** Local candidate narrowing for the query screen. Never picks one automatically. */
 export function findCandidates(rows: JoinedRow[], question: string): JoinedRow[] {
   const q = question.trim();
