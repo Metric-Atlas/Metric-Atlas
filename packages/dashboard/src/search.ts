@@ -64,6 +64,8 @@ export const KO_HINTS: { words: string[]; eventName: string }[] = [
   { words: ["구매", "결제", "purchase"], eventName: "purchase_click" },
   { words: ["가입", "회원", "signup"], eventName: "signup_complete" },
   { words: ["리드", "문의", "폼", "lead"], eventName: "lead_submit" },
+  { words: ["이슈", "issue"], eventName: "issue_click" },
+  { words: ["스폰서", "sponsor"], eventName: "sponsor_click" },
   { words: ["카드", "card"], eventName: "custom_card_click" },
   { words: ["페이지", "조회", "page"], eventName: "page_view" }
 ];
@@ -75,8 +77,6 @@ const BROAD_ANALYSIS_PATTERNS = [
   "요약",
   "진단",
   "전체",
-  "문제",
-  "이슈",
   "상태",
   "health",
   "헬스"

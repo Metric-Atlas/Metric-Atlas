@@ -6,6 +6,7 @@ const rows = [
   row("ga4:purchase_click", "purchase_click", "ga4", "gtag", "src/PurchaseButton.tsx", true, "healthy"),
   row("ga4:custom_card_click", "custom_card_click", "ga4", "gtag", "src/Card.tsx", false, "unresolved"),
   row("ga4:signup_complete", "signup_complete", "ga4", "gtag", "src/SignupForm.tsx", true, "healthy"),
+  row("ga4:issue_click", "issue_click", "ga4", "gtag", "src/IssueButton.tsx", true, "healthy"),
   row("ga4:page_view", "page_view", "ga4", "gtag", "src/App.tsx", true, "ga4Managed"),
   row("gtm:lead_submit", "lead_submit", "unknown", "gtm", "src/LeadForm.tsx", true, "codeOnly")
 ] as JoinedRow[];
@@ -83,7 +84,13 @@ describe("source file search", () => {
 describe("provider filter", () => {
   it("keeps ga4 provider events only", () => {
     const out = filterRows(rows, { ...EMPTY_FILTERS, provider: "ga4" });
-    expect(keys(out)).toEqual(["ga4:purchase_click", "ga4:custom_card_click", "ga4:signup_complete", "ga4:page_view"]);
+    expect(keys(out)).toEqual([
+      "ga4:purchase_click",
+      "ga4:custom_card_click",
+      "ga4:signup_complete",
+      "ga4:issue_click",
+      "ga4:page_view"
+    ]);
   });
 
   it("keeps unknown provider events only", () => {
@@ -135,5 +142,10 @@ describe("broad analysis intent", () => {
   it("keeps event-specific analysis requests on event search", () => {
     expect(isBroadAnalysisQuestion("구매 분석해줘")).toBe(false);
     expect(keys(findCandidates(rows, "구매 분석해줘"))).toEqual(["ga4:purchase_click"]);
+  });
+
+  it("does not treat issue button questions as broad health analysis", () => {
+    expect(isBroadAnalysisQuestion("이슈 등록하는 버튼을 클릭한 횟수를 알려줘")).toBe(false);
+    expect(keys(findCandidates(rows, "이슈 등록하는 버튼을 클릭한 횟수를 알려줘"))).toEqual(["ga4:issue_click"]);
   });
 });
